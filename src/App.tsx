@@ -29,7 +29,7 @@ function App() {
         </header>
 
         {/* 1. MOSTRAR LAS ESTADÍSTICAS ARRIBA */}
-        <Stats works={works} />
+        {loading ? <p>Actualizando cuentas...</p> : <Stats works={works} />}
 
         {/* 2. FORMULARIO PARA REGISTRAR TRABAJOS */}
         <WorkForm 
