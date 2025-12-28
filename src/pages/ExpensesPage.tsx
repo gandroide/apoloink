@@ -1,191 +1,166 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { supabase } from '../lib/supabase';
-import { formatterCOP } from '../lib/formatterCOP';
+import { useNavigate } from 'react-router-dom';
 
-interface Expense {
-  id: string;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-}
+export const ScannerPage = () => {
+  const navigate = useNavigate();
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [itemName, setItemName] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-export const ExpensesPage = () => {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Formulario
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Servicios');
-  const [isSaving, setIsSaving] = useState(false);
+  useEffect(() => {
+    // Inicializar el motor del escáner en el div con id "reader"
+    scannerRef.current = new Html5Qrcode("reader");
 
-  const fetchExpenses = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('expenses')
-      .select('*')
-      .order('date', { ascending: false });
-    setExpenses(data || []);
-    setLoading(false);
-  };
+    const startScanner = async () => {
+      try {
+        await scannerRef.current?.start(
+          { facingMode: "environment" }, // Forzar cámara trasera del móvil
+          {
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
+          },
+          async (decodedText) => {
+            // Validamos que el código sea de nuestra app
+            if (decodedText.startsWith('apolo-inventory:')) {
+              const itemId = decodedText.split(':')[1];
+              handleUpdateStock(itemId);
+            }
+          },
+          () => { /* Error de escaneo silencioso mientras busca */ }
+        );
+      } catch (err) {
+        console.error("Error al iniciar cámara:", err);
+        setErrorMessage("No se pudo acceder a la cámara. Asegúrate de dar permisos.");
+      }
+    };
 
-  useEffect(() => { fetchExpenses(); }, []);
+    startScanner();
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!description || !amount || isSaving) return;
+    // Limpieza al salir del componente
+    return () => {
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.stop().then(() => scannerRef.current?.clear());
+      }
+    };
+  }, []);
 
-    setIsSaving(true);
-    const { error } = await supabase.from('expenses').insert([
-      { description, amount: parseFloat(amount), category }
-    ]);
+  const handleUpdateStock = async (id: string) => {
+    if (status !== 'idle') return;
+    
+    setStatus('loading');
+    try {
+      // Detener cámara inmediatamente para evitar lecturas dobles
+      if (scannerRef.current?.isScanning) await scannerRef.current.stop();
 
-    if (!error) {
-      setDescription(''); 
-      setAmount('');
-      fetchExpenses();
+      // 1. Obtener datos actuales del item
+      const { data: item, error: fetchError } = await supabase
+        .from('inventory')
+        .select('name, total_stock')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !item) throw new Error('Producto no registrado');
+      setItemName(item.name);
+
+      // 2. Restar 1 unidad (mínimo 0)
+      const { error: updateError } = await supabase
+        .from('inventory')
+        .update({ total_stock: Math.max(0, item.total_stock - 1) })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      setStatus('success');
+      
+      // Feedback táctil para el Ale del futuro usando el scanner en el estudio
+      if (navigator.vibrate) navigator.vibrate(200);
+
+      // Redirigir al almacén después de la confirmación visual
+      setTimeout(() => navigate('/inventory'), 2500);
+
+    } catch (error: any) {
+      console.error(error);
+      setErrorMessage(error.message || "Error al actualizar");
+      setStatus('error');
+      
+      // Reiniciar después de 3 segundos para permitir otro escaneo si falla
+      setTimeout(() => {
+        setStatus('idle');
+        window.location.reload(); 
+      }, 3000);
     }
-    setIsSaving(false);
   };
-
-  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto min-h-screen animate-in fade-in duration-700 pb-24 px-4 md:px-10">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
       
-      {/* HEADER PROFESIONAL CON TOTAL */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10 text-left">
-        <div>
-          <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-none">
-            Gastos
-          </h2>
-          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1"> Control de Egresos y Costos Operativos </p>
-        </div>
-        
-        <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2.5rem] flex items-center gap-6 min-w-[280px]">
-          <div className="h-10 w-10 bg-red-900/20 rounded-full flex items-center justify-center border border-red-900/30">
-            <span className="text-red-500 text-xl font-black">↓</span>
-          </div>
-          <div>
-            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Total Salida Acumulada</p>
-            <p className="text-3xl font-black text-white font-mono tracking-tighter">
-              {formatterCOP.format(totalExpenses)}
-            </p>
-          </div>
-        </div>
-      </header>
+      <div className="w-full max-w-md space-y-8">
+        <header>
+          <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter">Scanner<span className="text-zinc-800">.</span></h2>
+          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2 italic">Apolo Supply Intel</p>
+        </header>
 
-      {/* GRID DE TRABAJO */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        
-        {/* COLUMNA IZQUIERDA: HISTORIAL (8/12) */}
-        <section className="lg:col-span-8 space-y-6 order-2 lg:order-1">
-          <div className="flex items-center gap-4 mb-4">
-            <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Historial de Transacciones</h3>
-            <div className="h-px flex-1 bg-zinc-800 opacity-30"></div>
-          </div>
-
-          {loading ? (
-            <div className="py-20 text-center animate-pulse text-zinc-700 text-xs font-black uppercase tracking-[0.3em]">
-              Sincronizando flujos de caja...
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {expenses.map((exp) => (
-                <div 
-                  key={exp.id} 
-                  className="bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 hover:border-red-900/20 transition-all duration-300 gap-4"
-                >
-                  <div className="flex items-center gap-5 text-left">
-                    <div className="h-12 w-12 bg-zinc-800/50 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:text-red-500 transition-colors uppercase text-xs border border-zinc-800">
-                      {exp.category.substring(0, 2)}
-                    </div>
-                    <div>
-                      <h4 className="font-black text-base uppercase text-zinc-200 tracking-tight leading-none mb-2 group-hover:text-white">
-                        {exp.description}
-                      </h4>
-                      <div className="flex gap-3 items-center">
-                        <span className="text-[8px] bg-zinc-800/80 px-3 py-1 rounded-full text-zinc-500 font-black uppercase tracking-widest border border-zinc-700/50">
-                          {exp.category}
-                        </span>
-                        <span className="text-[9px] text-zinc-600 font-bold uppercase italic tracking-tighter">
-                          {new Date(exp.date).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-full md:w-auto text-left md:text-right border-t md:border-t-0 border-zinc-800/50 pt-3 md:pt-0">
-                    <p className="text-xl font-black text-red-500 font-mono tracking-tighter">
-                      -{formatterCOP.format(exp.amount)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+        {/* CONTENEDOR DE CÁMARA ESTILO MINIMALISTA */}
+        <div className="relative overflow-hidden rounded-[4rem] border-2 border-zinc-800 bg-zinc-900/20 aspect-square flex items-center justify-center group">
+          
+          {/* Capa de la Cámara */}
+          <div id="reader" className="w-full h-full object-cover"></div>
+          
+          {/* UI: Buscando (Scanline) */}
+          {status === 'idle' && (
+            <div className="absolute inset-0 pointer-events-none border-[20px] border-black/10">
+              <div className="w-full h-[2px] bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.5)] absolute top-0 animate-[bounce_3s_infinite]"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                 <div className="w-64 h-64 border border-white/10 rounded-3xl"></div>
+              </div>
             </div>
           )}
-        </section>
 
-        {/* COLUMNA DERECHA: FORMULARIO (4/12) */}
-        <aside className="lg:col-span-4 order-1 lg:order-2">
-          <div className="lg:sticky lg:top-28">
-            <section className="bg-zinc-900/50 p-8 rounded-[3rem] border border-zinc-800 shadow-2xl space-y-8">
-              <div className="text-left">
-                <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-1">Caja Chica / Local</h3>
-                <p className="text-xl font-black italic text-white uppercase tracking-tighter">Registrar Salida</p>
+          {/* UI: Cargando */}
+          {status === 'loading' && (
+            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center backdrop-blur-md z-20">
+              <div className="animate-spin h-10 w-10 border-4 border-white border-t-transparent rounded-full mb-4"></div>
+              <p className="text-[10px] font-black text-white uppercase tracking-widest">Sincronizando Nube...</p>
+            </div>
+          )}
+
+          {/* UI: Éxito */}
+          {status === 'success' && (
+            <div className="absolute inset-0 bg-emerald-500 flex flex-col items-center justify-center text-black z-30 animate-in zoom-in duration-300">
+              <span className="text-7xl mb-4 animate-bounce">📦</span>
+              <p className="font-black uppercase tracking-tighter text-3xl leading-none mb-2">{itemName}</p>
+              <div className="bg-black text-white px-4 py-1 rounded-full text-[9px] font-black tracking-widest uppercase">
+                -1 Unidad de Stock
               </div>
+            </div>
+          )}
 
-              <form onSubmit={handleAddExpense} className="space-y-4 text-left">
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1">Descripción del Gasto</label>
-                  <input 
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-red-900 outline-none transition-all text-white placeholder:text-zinc-800 font-bold"
-                    placeholder="Ej: Pago de Luz Diciembre"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                  />
-                </div>
+          {/* UI: Error */}
+          {status === 'error' && (
+            <div className="absolute inset-0 bg-red-600 flex flex-col items-center justify-center text-white z-30">
+              <span className="text-6xl mb-4">⚠️</span>
+              <p className="font-black uppercase tracking-tighter text-xl">Fallo de Lectura</p>
+              <p className="text-[9px] font-bold mt-2 opacity-80 uppercase tracking-widest">{errorMessage}</p>
+            </div>
+          )}
+        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-zinc-600 uppercase ml-1">Monto (COP)</label>
-                    <input 
-                      type="number"
-                      className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white focus:border-red-900 outline-none"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-zinc-600 uppercase ml-1">Categoría</label>
-                    <select 
-                      className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 outline-none cursor-pointer appearance-none"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                    >
-                      <option value="Servicios">Servicios</option>
-                      <option value="Renta">Renta</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Mantenimiento">Mantenimiento</option>
-                      <option value="Insumos">Insumos</option>
-                      <option value="Otros">Otros</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button 
-                  disabled={isSaving}
-                  className="w-full bg-red-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-[0_15px_30px_rgba(220,38,38,0.2)] hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50 mt-4"
-                >
-                  {isSaving ? 'REGISTRANDO...' : 'CONFIRMAR GASTO'}
-                </button>
-              </form>
-            </section>
-          </div>
-        </aside>
+        <div className="flex flex-col gap-6 items-center">
+          <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest max-w-[200px]">
+            Apunta la cámara al código QR impreso en el insumo
+          </p>
+          
+          <button 
+            onClick={() => navigate('/inventory')}
+            className="group flex items-center gap-3 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-[0.3em] transition-all"
+          >
+            <span className="group-hover:-translate-x-2 transition-transform">←</span> 
+            Cancelar y Volver
+          </button>
+        </div>
       </div>
     </div>
   );

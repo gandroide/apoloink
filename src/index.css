@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Limpieza de la librería QR */
+#reader {
+  border: none !important;
+}
+
+/* Esconde los botones y textos automáticos que no queremos */
+#reader__dashboard_section_csr, 
+#reader__dashboard_section_fsr,
+#reader img,
+#reader__status_span {
+  display: none !important;
+}
+
+/* Asegura que el video ocupe el contenedor redondeado que creamos */
+#reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 3rem !important;
+}
