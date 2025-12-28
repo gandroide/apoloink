@@ -6,7 +6,7 @@ interface InventoryItem {
   id: string;
   name: string;
   total_stock: number;
-  cost_per_unit: number; // En este contexto, será costo por caja
+  cost_per_unit: number; 
 }
 
 export const InventoryPage = () => {
@@ -75,6 +75,23 @@ export const InventoryPage = () => {
     }
   };
 
+  const handleDelete = async (id: string, itemName: string) => {
+    const confirmed = window.confirm(`¿Seguro que quieres eliminar "${itemName}" del inventario? Esta acción no se puede deshacer.`);
+    
+    if (confirmed) {
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("Error al eliminar el insumo.");
+      } else {
+        setItems(items.filter(item => item.id !== id));
+      }
+    }
+  };
+
   const startEdit = (item: InventoryItem) => {
     setEditingId(item.id);
     setName(item.name);
@@ -85,126 +102,116 @@ export const InventoryPage = () => {
 
   const getStatusColor = (quantity: number) => {
     if (quantity === 0) return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]';
-    if (quantity <= 3) return 'bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.5)]'; // Ajustado a 3 cajas para alerta
+    if (quantity <= 5) return 'bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.5)]';
     return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.5)]';
   };
 
   return (
-    <div className="max-w-md mx-auto space-y-6 animate-in fade-in duration-500 pb-24 px-2">
+    <div className="max-w-md mx-auto space-y-6 animate-in fade-in duration-500 pb-24 px-2 text-zinc-200">
       <header className="space-y-1">
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">Stock por Cajas</h2>
-        <p className="text-zinc-500 text-[10px] uppercase tracking-[0.3em] font-bold">Inventario Apolo Ink</p>
+        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none text-center">Control de Stock</h2>
+        <p className="text-zinc-500 text-[10px] uppercase tracking-[0.3em] font-bold text-center italic">Cajas Disponibles</p>
       </header>
 
       {/* Buscador */}
       <div className="relative group">
         <input 
-          className="w-full bg-zinc-900/50 border border-zinc-800 p-4 pl-12 rounded-2xl text-sm outline-none focus:border-zinc-500 transition-all text-zinc-200 placeholder:text-zinc-700"
+          className="w-full bg-zinc-900/50 border border-zinc-800 p-4 pl-12 rounded-2xl text-sm outline-none focus:border-zinc-500 transition-all placeholder:text-zinc-700 font-bold"
           placeholder="Buscar caja de..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100 transition-opacity">
-          🔍
-        </div>
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20">🔍</div>
       </div>
 
-      {/* Formulario de Cajas */}
-      <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
-            <span className="text-6xl font-black italic">BOX</span>
-        </div>
-        
-        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-5 ml-1 relative">
-          {editingId ? 'Editar Detalles de Caja' : 'Ingresar Nueva Caja'}
+      {/* Formulario */}
+      <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2.5rem] shadow-2xl border-b-4 border-b-zinc-800">
+        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-5 ml-1">
+          {editingId ? 'Editar Información' : 'Nuevo Registro'}
         </h3>
         
-        <form onSubmit={handleSubmit} className="space-y-4 relative">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input 
-            className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm outline-none focus:border-zinc-600 text-zinc-200"
-            placeholder="Descripción (Ej: Agujas 1205RL x50)"
+            className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm outline-none focus:border-zinc-600"
+            placeholder="Descripción (Ej: Agujas 3RL)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[8px] font-black text-zinc-600 uppercase ml-2 tracking-tighter">Nº de Cajas</label>
-              <input 
-                type="number"
-                className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-zinc-200"
-                placeholder="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[8px] font-black text-zinc-600 uppercase ml-2 tracking-tighter">Costo por Caja</label>
-              <input 
-                type="number"
-                className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-zinc-200"
-                placeholder="$"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-              />
-            </div>
+            <input 
+              type="number"
+              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono outline-none focus:border-zinc-600"
+              placeholder="Cajas"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              required
+            />
+            <input 
+              type="number"
+              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono outline-none focus:border-zinc-600"
+              placeholder="Costo $"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+            />
           </div>
-          <div className="flex gap-2 pt-2">
-            <button className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] active:scale-95 transition-all shadow-lg">
-              {editingId ? 'Actualizar Caja' : 'Guardar en Stock'}
+          <div className="flex gap-2">
+            <button className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition-all">
+              {editingId ? 'Guardar' : 'Agregar'}
             </button>
             {editingId && (
               <button 
-                type="button"
+                type="button" 
                 onClick={() => { setEditingId(null); setName(''); setStock(''); setCost(''); }}
-                className="bg-zinc-800 text-zinc-400 px-6 rounded-2xl font-black uppercase text-[10px]"
-              >
-                ×
-              </button>
+                className="bg-zinc-800 px-6 rounded-2xl font-bold"
+              >✕</button>
             )}
           </div>
         </form>
       </section>
 
-      {/* Lista de Cajas */}
+      {/* Lista de Insumos */}
       <section className="space-y-3">
-        <h3 className="text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em] ml-2">Cajas Disponibles</h3>
-        
         {loading ? (
-          <div className="text-center py-10 animate-pulse text-zinc-700 text-xs font-bold uppercase italic tracking-widest">Leyendo almacén...</div>
+          <div className="text-center py-10 animate-pulse text-zinc-700 font-black uppercase text-xs">Sincronizando...</div>
         ) : (
           filteredItems.map((item) => (
-            <div key={item.id} className="bg-zinc-900/40 border border-zinc-900 p-5 rounded-[2.5rem] flex flex-col gap-5 hover:border-zinc-800 transition-all">
-              <div className="flex justify-between items-start">
+            <div key={item.id} className="bg-zinc-900/40 border border-zinc-900 p-5 rounded-[2.5rem] flex flex-col gap-4 relative group hover:border-zinc-800 transition-all">
+              
+              {/* Botón Eliminar (Esquina superior derecha) */}
+              <button 
+                onClick={() => handleDelete(item.id, item.name)}
+                className="absolute top-4 right-2 text-zinc-800 hover:text-red-500 transition-colors p-2"
+                title="Eliminar insumo"
+              >
+                <span className="text-xs uppercase font-black tracking-tighter">Eliminar</span>
+              </button>
+
+              <div className="flex justify-between items-start pr-16">
                 <div className="flex items-start gap-4">
                   <div className={`mt-1.5 w-2.5 h-2.5 rounded-full ${getStatusColor(item.total_stock)}`} />
-                  <div onClick={() => startEdit(item)} className="cursor-pointer group">
-                    <h4 className="font-bold text-sm uppercase text-zinc-200 tracking-tight group-hover:text-blue-400 transition-colors">
-                      {item.name}
-                    </h4>
-                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-tighter mt-1">
-                      Inversión Caja: {formatterCOP.format(item.cost_per_unit)}
-                    </p>
+                  <div onClick={() => startEdit(item)} className="cursor-pointer">
+                    <h4 className="font-bold text-sm uppercase text-zinc-200 tracking-tight group-hover:text-blue-400 transition-colors">{item.name}</h4>
+                    <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">Caja: {formatterCOP.format(item.cost_per_unit)}</p>
                   </div>
                 </div>
-                <div className="bg-zinc-950 px-4 py-2 rounded-2xl border border-zinc-800 text-center min-w-[70px]">
-                  <span className="text-2xl font-black text-white font-mono leading-none block">{item.total_stock}</span>
-                  <span className="text-[7px] text-zinc-600 uppercase font-black tracking-widest">CAJAS</span>
+                <div className="text-right">
+                    <span className="text-2xl font-black text-white font-mono leading-none">{item.total_stock}</span>
+                    <p className="text-[8px] text-zinc-700 uppercase font-black tracking-widest">Cajas</p>
                 </div>
               </div>
 
-              {/* Ajuste rápido por caja */}
+              {/* Ajuste rápido */}
               <div className="flex gap-2">
                 <button 
                   onClick={() => quickAdjust(item.id, item.total_stock, -1)}
-                  className="flex-1 bg-zinc-950 border border-zinc-900 text-zinc-500 py-3 rounded-xl font-black hover:text-red-500 hover:border-red-900/30 active:scale-95 transition-all text-xs"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-500 py-3 rounded-xl font-black text-[10px] hover:text-red-400 transition-all"
                 >
                   - 1 CAJA
                 </button>
                 <button 
                   onClick={() => quickAdjust(item.id, item.total_stock, 1)}
-                  className="flex-1 bg-zinc-950 border border-zinc-900 text-zinc-500 py-3 rounded-xl font-black hover:text-green-500 hover:border-green-900/30 active:scale-95 transition-all text-xs"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-500 py-3 rounded-xl font-black text-[10px] hover:text-green-400 transition-all"
                 >
                   + 1 CAJA
                 </button>
@@ -213,8 +220,6 @@ export const InventoryPage = () => {
           ))
         )}
       </section>
-      
-      <p className="text-center text-[8px] text-zinc-800 font-black uppercase tracking-[0.4em]">Apolo Ink Warehouse Management</p>
     </div>
   );
 };
