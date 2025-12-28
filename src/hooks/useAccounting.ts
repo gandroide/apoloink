@@ -1,23 +1,25 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Interfaz para el perfil del artista
 export interface Artist {
   id: string;
   name: string;
   commission_percentage: number;
   type: 'residente' | 'invitado';
-  max_canvases: number;
+  max_canvases: number; // Nueva propiedad para control de lienzos
 }
 
+// Interfaz para cada trabajo/tatuaje
 export interface Work {
-    id: string;
-    client_name: string;
-    total_price: number;
-    created_at: string;
-    artist_id: string;
-    is_canvas: boolean;
-    artist_profile?: Artist;
-  }
+  id: string;
+  client_name: string;
+  total_price: number;
+  created_at: string;
+  artist_id: string;
+  is_canvas: boolean; // Nueva propiedad para identificar cortesías
+  artist_profile?: Artist;
+}
 
 export const useAccounting = () => {
   const [works, setWorks] = useState<Work[]>([]);
@@ -35,11 +37,12 @@ export const useAccounting = () => {
             id,
             name,
             commission_percentage,
-            type
+            type,
+            max_canvases
           )
         `);
 
-      // Lógica de filtrado mensual si se pasan parámetros
+      // Filtrado por fecha si se proporcionan parámetros
       if (month !== undefined && year !== undefined) {
         const startDate = new Date(year, month, 1).toISOString();
         const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
@@ -58,7 +61,7 @@ export const useAccounting = () => {
       setWorks(worksData || []);
       setArtists(artistsData || []);
     } catch (error) {
-      console.error('Error cargando datos:', error);
+      console.error('Error en fetchWorks:', error);
     } finally {
       setLoading(false);
     }
@@ -67,7 +70,8 @@ export const useAccounting = () => {
   const registerWork = async (workData: { 
     artist_id: string; 
     total_price: number; 
-    client_name: string; 
+    client_name: string;
+    is_canvas: boolean; // Ahora permitimos registrar si es lienzo
   }) => {
     const { error } = await supabase.from('artist_works').insert([workData]);
     if (error) return { success: false, error };
