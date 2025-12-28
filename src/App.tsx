@@ -15,10 +15,10 @@ import { NewWorkPage } from './pages/NewWorkPage';
 import { ArchivedArtistsPage } from './pages/ArchiveArtistPage';
 import { Login } from './pages/Login';
 import { ScannerPage } from './pages/ScannerPage';
+import { DocumentationPage } from './pages/DocumentationPage';
 
 function AppContent() {
   const { user } = useAuth();
-  const location = useLocation();
 
   // Función para cerrar sesión
   const handleSignOut = async () => {
@@ -69,7 +69,7 @@ function AppContent() {
           <Route path="/new-work" element={<ProtectedRoute><NewWorkPage /></ProtectedRoute>} />
           <Route path="/team/archived" element={<ProtectedRoute><ArchivedArtistsPage /></ProtectedRoute>} />
           <Route path="/scan" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
-
+          <Route path="/guide" element={<DocumentationPage />} />
           {/* Redirección por defecto */}
           <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
         </Routes>
@@ -77,16 +77,19 @@ function AppContent() {
 
       {/* MENÚ INFERIOR: Solo se muestra si el usuario está logueado */}
       {user && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 p-4 pb-8 z-50 animate-in slide-in-from-bottom duration-500">
-          <div className="max-w-lg mx-auto flex justify-around items-center">
-            <NavButton to="/" icon="📊" label="Dash" />
-            <NavButton to="/team" icon="👨‍🎨" label="Equipo" />
-            <NavButton to="/expenses" icon="💸" label="Gastos" />
-            <NavButton to="/accounting" icon="💰" label="Cuentas" />
-            <NavButton to="/inventory" icon="📦" label="Stock" />
-          </div>
-        </nav>
-      )}
+  <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 p-4 pb-8 z-50 animate-in slide-in-from-bottom duration-500">
+    <div className="max-w-lg mx-auto flex justify-around items-center gap-1">
+      <NavButton to="/" icon="📊" label="Dash" />
+      <NavButton to="/inventory" icon="📦" label="Stock" />
+      <NavButton to="/team" icon="👨‍🎨" label="Equipo" />
+      <NavButton to="/expenses" icon="💸" label="Gastos" />
+      <NavButton to="/accounting" icon="💰" label="Cuentas" />
+      
+      {/* NUEVO BOTÓN DE GUÍA */}
+      <NavButton to="/guide" icon="📖" label="Guía" />
+    </div>
+  </nav>
+)}
     </div>
   );
 }
