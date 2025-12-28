@@ -5,44 +5,54 @@ export interface Artist {
   id: string;
   name: string;
   commission_percentage: number;
+  type: 'residente' | 'invitado';
+  max_canvases: number;
 }
 
 export interface Work {
-  id: string;
-  client_name: string;
-  total_price: number;
-  created_at: string;
-  artist_id: string;
-  artist_profile?: Artist;
-}
+    id: string;
+    client_name: string;
+    total_price: number;
+    created_at: string;
+    artist_id: string;
+    is_canvas: boolean;
+    artist_profile?: Artist;
+  }
 
 export const useAccounting = () => {
   const [works, setWorks] = useState<Work[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchWorks = useCallback(async () => {
+  const fetchWorks = useCallback(async (month?: number, year?: number) => {
     setLoading(true);
     try {
-      const { data: worksData, error: worksError } = await supabase
+      let query = supabase
         .from('artist_works')
         .select(`
           *,
           artist_profile (
             id,
             name,
-            commission_percentage
+            commission_percentage,
+            type
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
 
+      // Lógica de filtrado mensual si se pasan parámetros
+      if (month !== undefined && year !== undefined) {
+        const startDate = new Date(year, month, 1).toISOString();
+        const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+        query = query.gte('created_at', startDate).lte('created_at', endDate);
+      }
+
+      const { data: worksData, error: worksError } = await query.order('created_at', { ascending: false });
       if (worksError) throw worksError;
 
       const { data: artistsData, error: artistsError } = await supabase
         .from('artist_profile')
         .select('*')
         .order('name', { ascending: true });
-
       if (artistsError) throw artistsError;
 
       setWorks(worksData || []);
@@ -54,29 +64,15 @@ export const useAccounting = () => {
     }
   }, []);
 
-  // ESTA ES LA FUNCIÓN QUE TE FALTABA:
   const registerWork = async (workData: { 
     artist_id: string; 
     total_price: number; 
     client_name: string; 
   }) => {
-    const { error } = await supabase
-      .from('artist_works')
-      .insert([workData]);
-    
-    if (error) {
-      console.error('Error al registrar:', error);
-      return { success: false, error };
-    }
-
+    const { error } = await supabase.from('artist_works').insert([workData]);
+    if (error) return { success: false, error };
     return { success: true };
   };
 
-  return { 
-    works, 
-    artists, 
-    loading, 
-    fetchWorks, 
-    registerWork // Asegúrate de que esté en el return
-  };
+  return { works, artists, loading, fetchWorks, registerWork };
 };
