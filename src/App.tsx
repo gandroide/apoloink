@@ -4,6 +4,8 @@ import { Accounting } from './pages/Accounting';
 import { InventoryPage } from './pages/InventoryPage';
 import { ArtistsPage } from './pages/ArtistsPage';
 import { ArtistDetail } from './pages/ArtistDetails';
+import { ExpensesPage } from './pages/ExpensesPage'; // Importación del nuevo componente
+import { EditWorkPage } from './pages/EditionWorkPage';
 
 function App() {
   return (
@@ -17,15 +19,17 @@ function App() {
           </div>
         </header>
 
-        {/* CUERPO DE LA APP: Aquí es donde React Router hace el cambio */}
+        {/* CUERPO DE LA APP */}
         <main className="max-w-md mx-auto p-4">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/accounting" element={<Accounting />} />
-          <Route path="/inventory" element={<InventoryPage />} />
-          <Route path="/team" element={<ArtistsPage />} />
-          <Route path="/team/:id" element={<ArtistDetail />} />
-        </Routes>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/accounting" element={<Accounting />} />
+            <Route path="/expenses" element={<ExpensesPage />} /> {/* Nueva ruta para Gastos */}
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/team" element={<ArtistsPage />} />
+            <Route path="/team/:id" element={<ArtistDetail />} />
+            <Route path="/edit-work/:id" element={<EditWorkPage />} />
+          </Routes>
         </main>
 
         {/* MENÚ INFERIOR (BOTONERA) */}
@@ -33,6 +37,7 @@ function App() {
           <div className="max-w-md mx-auto flex justify-around items-center">
             <NavButton to="/" icon="📊" label="Dash" />
             <NavButton to="/team" icon="👨‍🎨" label="Equipo" />
+            <NavButton to="/expenses" icon="💸" label="Gastos" /> {/* Botón de Gastos añadido */}
             <NavButton to="/accounting" icon="💰" label="Cuentas" />
             <NavButton to="/inventory" icon="📦" label="Stock" />
           </div>
@@ -45,7 +50,8 @@ function App() {
 // Componente para los botones del menú que detecta cuál está activo
 function NavButton({ to, icon, label }: { to: string, icon: string, label: string }) {
   const location = useLocation();
-  const isActive = location.pathname === to;
+  // Usamos startsWith para que el botón de 'Equipo' siga activo si estás en el detalle del artista
+  const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
   
   return (
     <Link 

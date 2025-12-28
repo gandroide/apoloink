@@ -14,6 +14,10 @@ export const InventoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Estado para el Modal de Confirmación Estilizado
+  const [showDeleteModal, setShowDeleteModal] = useState<{show: boolean, id: string, name: string} | null>(null);
+
+  // Estados para Formulario (Creación/Edición)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [stock, setStock] = useState('');
@@ -75,20 +79,13 @@ export const InventoryPage = () => {
     }
   };
 
-  const handleDelete = async (id: string, itemName: string) => {
-    const confirmed = window.confirm(`¿Seguro que quieres eliminar "${itemName}" del inventario? Esta acción no se puede deshacer.`);
+  const confirmDelete = async () => {
+    if (!showDeleteModal) return;
+    const { error } = await supabase.from('inventory').delete().eq('id', showDeleteModal.id);
     
-    if (confirmed) {
-      const { error } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        alert("Error al eliminar el insumo.");
-      } else {
-        setItems(items.filter(item => item.id !== id));
-      }
+    if (!error) {
+      setItems(items.filter(i => i.id !== showDeleteModal.id));
+      setShowDeleteModal(null);
     }
   };
 
@@ -101,39 +98,74 @@ export const InventoryPage = () => {
   };
 
   const getStatusColor = (quantity: number) => {
-    if (quantity === 0) return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]';
+    if (quantity === 0) return 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)] animate-pulse';
     if (quantity <= 5) return 'bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.5)]';
-    return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.5)]';
+    return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
   };
 
   return (
-    <div className="max-w-md mx-auto space-y-6 animate-in fade-in duration-500 pb-24 px-2 text-zinc-200">
+    <div className="max-w-md mx-auto space-y-6 pb-24 px-4 animate-in fade-in duration-500 text-zinc-200">
+      
+      {/* MODAL DE CONFIRMACIÓN ESTILIZADO */}
+      {showDeleteModal?.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in zoom-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,1)] w-full max-w-xs text-center space-y-6 border-b-4 border-b-red-600/20">
+            <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl animate-bounce">
+              ⚠️
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-white font-black uppercase italic text-xl tracking-tighter">¿Borrar de Stock?</h3>
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                Vas a eliminar permanentemente <br/>
+                <span className="text-red-400">"{showDeleteModal.name}"</span>
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button 
+                onClick={confirmDelete}
+                className="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-500 transition-all active:scale-95"
+              >
+                ELIMINAR AHORA
+              </button>
+              <button 
+                onClick={() => setShowDeleteModal(null)}
+                className="w-full bg-zinc-800 text-zinc-400 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-zinc-700 transition-all"
+              >
+                CANCELAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="space-y-1">
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none text-center">Control de Stock</h2>
-        <p className="text-zinc-500 text-[10px] uppercase tracking-[0.3em] font-bold text-center italic">Cajas Disponibles</p>
+        <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white leading-none">Almacén</h2>
+        <p className="text-zinc-500 text-[10px] uppercase tracking-[0.4em] font-black italic opacity-50">Apolo Ink Sytems</p>
       </header>
 
-      {/* Buscador */}
+      {/* Buscador de Alto Contraste */}
       <div className="relative group">
         <input 
-          className="w-full bg-zinc-900/50 border border-zinc-800 p-4 pl-12 rounded-2xl text-sm outline-none focus:border-zinc-500 transition-all placeholder:text-zinc-700 font-bold"
-          placeholder="Buscar caja de..."
+          className="w-full bg-zinc-900 border-2 border-zinc-800 p-4 pl-12 rounded-3xl text-sm outline-none focus:border-zinc-500 transition-all text-white placeholder:text-zinc-800 font-bold"
+          placeholder="BUSCAR CAJA..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-20">🔍</div>
+        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-700 font-black italic">/</div>
       </div>
 
-      {/* Formulario */}
-      <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2.5rem] shadow-2xl border-b-4 border-b-zinc-800">
-        <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-5 ml-1">
-          {editingId ? 'Editar Información' : 'Nuevo Registro'}
+      {/* Formulario de Registro/Edición */}
+      <section className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+        <div className="absolute -right-4 -top-4 text-zinc-800/20 font-black text-6xl italic pointer-events-none group-focus-within:text-white/5 transition-colors">BOX</div>
+        
+        <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-5 ml-1 relative">
+          {editingId ? 'Editando Insumo' : 'Nuevo Ingreso de Cajas'}
         </h3>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 relative">
           <input 
-            className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm outline-none focus:border-zinc-600"
-            placeholder="Descripción (Ej: Agujas 3RL)"
+            className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm outline-none focus:border-zinc-600 text-white transition-all"
+            placeholder="Descripción del material"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -141,7 +173,7 @@ export const InventoryPage = () => {
           <div className="grid grid-cols-2 gap-3">
             <input 
               type="number"
-              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono outline-none focus:border-zinc-600"
+              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-zinc-600"
               placeholder="Cajas"
               value={stock}
               onChange={(e) => setStock(e.target.value)}
@@ -149,21 +181,21 @@ export const InventoryPage = () => {
             />
             <input 
               type="number"
-              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono outline-none focus:border-zinc-600"
+              className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-zinc-600"
               placeholder="Costo $"
               value={cost}
               onChange={(e) => setCost(e.target.value)}
             />
           </div>
           <div className="flex gap-2">
-            <button className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition-all">
-              {editingId ? 'Guardar' : 'Agregar'}
+            <button className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition-all shadow-[0_10px_20px_rgba(255,255,255,0.1)]">
+              {editingId ? 'GUARDAR CAMBIOS' : 'REGISTRAR STOCK'}
             </button>
             {editingId && (
               <button 
-                type="button" 
+                type="button"
                 onClick={() => { setEditingId(null); setName(''); setStock(''); setCost(''); }}
-                className="bg-zinc-800 px-6 rounded-2xl font-bold"
+                className="bg-zinc-800 text-zinc-400 px-6 rounded-2xl font-black"
               >✕</button>
             )}
           </div>
@@ -171,33 +203,39 @@ export const InventoryPage = () => {
       </section>
 
       {/* Lista de Insumos */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         {loading ? (
-          <div className="text-center py-10 animate-pulse text-zinc-700 font-black uppercase text-xs">Sincronizando...</div>
+          <div className="text-center py-10 animate-pulse text-zinc-800 font-black uppercase text-xs tracking-[0.5em]">Actualizando...</div>
+        ) : filteredItems.length === 0 ? (
+            <p className="text-center text-zinc-800 text-[10px] font-black uppercase py-10 border-2 border-dashed border-zinc-900 rounded-[2.5rem]">No hay coincidencias</p>
         ) : (
           filteredItems.map((item) => (
-            <div key={item.id} className="bg-zinc-900/40 border border-zinc-900 p-5 rounded-[2.5rem] flex flex-col gap-4 relative group hover:border-zinc-800 transition-all">
+            <div key={item.id} className="bg-zinc-900/40 border border-zinc-900 p-5 rounded-[2.5rem] flex flex-col gap-5 hover:border-zinc-800 transition-all relative overflow-hidden">
               
-              {/* Botón Eliminar (Esquina superior derecha) */}
               <button 
-                onClick={() => handleDelete(item.id, item.name)}
-                className="absolute top-4 right-2 text-zinc-800 hover:text-red-500 transition-colors p-2"
-                title="Eliminar insumo"
+                onClick={() => setShowDeleteModal({show: true, id: item.id, name: item.name})}
+                className="absolute top-6 right-2 text-[8px] font-black text-zinc-800 hover:text-red-500 uppercase tracking-widest transition-colors"
               >
-                <span className="text-xs uppercase font-black tracking-tighter">Eliminar</span>
+                Eliminar
               </button>
 
-              <div className="flex justify-between items-start pr-16">
+              <div className="flex justify-between items-start pr-12">
                 <div className="flex items-start gap-4">
-                  <div className={`mt-1.5 w-2.5 h-2.5 rounded-full ${getStatusColor(item.total_stock)}`} />
-                  <div onClick={() => startEdit(item)} className="cursor-pointer">
-                    <h4 className="font-bold text-sm uppercase text-zinc-200 tracking-tight group-hover:text-blue-400 transition-colors">{item.name}</h4>
-                    <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">Caja: {formatterCOP.format(item.cost_per_unit)}</p>
+                  <div className={`mt-2 w-2.5 h-2.5 rounded-full transition-all duration-700 ${getStatusColor(item.total_stock)}`} />
+                  <div onClick={() => startEdit(item)} className="cursor-pointer group">
+                    <h4 className="font-bold text-base uppercase text-zinc-100 tracking-tight group-hover:text-zinc-400 transition-colors leading-none">
+                        {item.name}
+                    </h4>
+                    <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-tighter mt-1">
+                      Inversión Caja: {formatterCOP.format(item.cost_per_unit)}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                    <span className="text-2xl font-black text-white font-mono leading-none">{item.total_stock}</span>
-                    <p className="text-[8px] text-zinc-700 uppercase font-black tracking-widest">Cajas</p>
+                  <span className={`text-2xl font-black font-mono leading-none ${item.total_stock <= 5 ? (item.total_stock === 0 ? 'text-red-500' : 'text-yellow-500') : 'text-white'}`}>
+                    {item.total_stock}
+                  </span>
+                  <p className="text-[7px] text-zinc-700 uppercase font-black tracking-widest leading-none mt-1">Cajas</p>
                 </div>
               </div>
 
@@ -205,15 +243,15 @@ export const InventoryPage = () => {
               <div className="flex gap-2">
                 <button 
                   onClick={() => quickAdjust(item.id, item.total_stock, -1)}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-500 py-3 rounded-xl font-black text-[10px] hover:text-red-400 transition-all"
+                  className="flex-1 bg-zinc-950/50 border border-zinc-800 text-zinc-600 py-3 rounded-xl font-black text-[10px] hover:text-white hover:border-zinc-600 active:scale-95 transition-all uppercase tracking-widest"
                 >
-                  - 1 CAJA
+                  - 1 Caja
                 </button>
                 <button 
                   onClick={() => quickAdjust(item.id, item.total_stock, 1)}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-500 py-3 rounded-xl font-black text-[10px] hover:text-green-400 transition-all"
+                  className="flex-1 bg-zinc-950/50 border border-zinc-800 text-zinc-600 py-3 rounded-xl font-black text-[10px] hover:text-white hover:border-zinc-600 active:scale-95 transition-all uppercase tracking-widest"
                 >
-                  + 1 CAJA
+                  + 1 Caja
                 </button>
               </div>
             </div>

@@ -1,107 +1,119 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAccounting } from '../hooks/useAccounting';
-import { WorkForm } from '../components/WorkForm';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase'; // Importante para cargar gastos
 import { formatterCOP } from '../lib/formatterCOP';
+import { generateAccountingReport } from '../lib/reports';
+
+const MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
 
 export const Accounting = () => {
-  const { fetchWorks, works, artists, loading } = useAccounting();
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [expDesc, setExpDesc] = useState('');
-  const [expAmount, setExpAmount] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate();
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  
+  const { fetchWorks, works, loading: loadingWorks } = useAccounting();
+  const [expenses, setExpenses] = useState<any[]>([]); // Estado para los gastos
+  const [loadingExpenses, setLoadingExpenses] = useState(false);
 
-  const fetchExpenses = async () => {
+  const loadData = async () => {
+    setLoadingExpenses(true);
+    // 1. Cargar trabajos
+    await fetchWorks(selectedMonth, selectedYear);
+
+    // 2. Cargar gastos para el reporte del contador
+    const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
+    const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).toISOString();
+    
     const { data } = await supabase
-      .from('store_expenses')
+      .from('expenses')
       .select('*')
-      .order('created_at', { ascending: false });
+      .gte('date', startDate)
+      .lte('date', endDate);
+    
     setExpenses(data || []);
-  };
-
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!expDesc || !expAmount) return;
-    
-    setIsSaving(true);
-    await supabase.from('store_expenses').insert([
-      { description: expDesc, amount: parseFloat(expAmount) }
-    ]);
-    
-    setExpDesc(''); 
-    setExpAmount('');
-    await fetchExpenses();
-    setIsSaving(false);
+    setLoadingExpenses(false);
   };
 
   useEffect(() => {
-    fetchWorks();
-    fetchExpenses();
-  }, [fetchWorks]);
+    loadData();
+  }, [selectedMonth, selectedYear]);
+
+  const totalStudioGross = works.reduce((sum, w) => {
+    const artistCommission = w.artist_profile?.commission_percentage || 50;
+    const studioPercentage = (100 - artistCommission) / 100;
+    return sum + (w.total_price * studioPercentage);
+  }, 0);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <header className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter">Cuentas</h2>
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Registros Diarios</p>
+    <div className="space-y-6 animate-in fade-in pb-10">
+      <header className="space-y-4">
+        <h2 className="text-2xl font-black italic text-white uppercase tracking-tighter text-left">Liquidación Artistas</h2>
+        
+        <div className="flex gap-2">
+          <select 
+            className="flex-1 bg-zinc-900 border border-zinc-800 p-3 rounded-2xl text-xs font-bold uppercase text-zinc-300 outline-none"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+          >
+            {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+          </select>
+          <select 
+            className="bg-zinc-900 border border-zinc-800 p-3 rounded-2xl text-xs font-bold uppercase text-zinc-300 outline-none"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          >
+            {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
-        {loading && (
-          <div className="bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800 animate-pulse">
-            <span className="text-[10px] font-black text-zinc-500 uppercase">Sincronizando</span>
-          </div>
-        )}
       </header>
 
-      {/* Formulario de registro de tatuajes */}
-      <section className="space-y-4">
-        <WorkForm artists={artists} onSuccess={fetchWorks} />
-        
-        {/* Usamos 'works' para mostrar el historial reciente y evitar errores de build */}
-        <div className="space-y-2 mt-4">
-          <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] ml-1">Ingresos de Hoy ({works.length})</p>
-          {works.slice(0, 3).map(work => (
-            <div key={work.id} className="bg-zinc-900/40 p-3 rounded-xl border border-zinc-800 flex justify-between items-center">
-              <span className="text-sm font-medium text-zinc-300">{work.client_name}</span>
-              <span className={`font-mono font-bold text-sm ${work.is_canvas ? 'text-blue-400' : 'text-green-500'}`}>
-                {work.is_canvas ? 'LIENZO' : formatterCOP.format(work.total_price)}
-              </span>
-            </div>
-          ))}
+      {/* Resumen y Botón Contador */}
+      <section className="space-y-3">
+        <div className="bg-white p-6 rounded-[2rem] text-black shadow-xl">
+          <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Bruto Estudio</p>
+          <h3 className="text-3xl font-black tabular-nums">{formatterCOP.format(totalStudioGross)}</h3>
         </div>
+
+        {/* BOTÓN PARA EL CONTADOR */}
+        <button 
+          onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
+          disabled={loadingWorks || loadingExpenses}
+          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {loadingExpenses ? 'Cargando Datos...' : '📊 Reporte para Contador (.CSV)'}
+        </button>
       </section>
 
-      {/* Formulario de Gastos */}
-      <section className="space-y-4 pt-6 border-t border-zinc-900">
-        <h3 className="text-xl font-black italic tracking-tight text-red-500 uppercase">Gastos del Local</h3>
-        <form onSubmit={handleAddExpense} className="flex gap-2">
-          <input 
-            className="flex-1 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-red-500 outline-none transition-all" 
-            placeholder="Insumos, Luz, Arriendo..." 
-            value={expDesc} 
-            onChange={e => setExpDesc(e.target.value)}
-          />
-          <input 
-            className="w-28 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-sm font-mono focus:border-red-500 outline-none" 
-            type="number" 
-            placeholder="$" 
-            value={expAmount} 
-            onChange={e => setExpAmount(e.target.value)}
-          />
-          <button 
-            disabled={isSaving}
-            className="bg-red-600 text-white px-5 rounded-2xl font-bold hover:bg-red-500 transition-colors disabled:opacity-50"
-          >
-            {isSaving ? '...' : '+'}
-          </button>
-        </form>
-
+      {/* HISTORIAL DE INGRESOS */}
+      <section className="space-y-3">
+        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1">Ingresos del mes</p>
         <div className="space-y-2">
-          {expenses.slice(0, 5).map(exp => (
-            <div key={exp.id} className="flex justify-between items-center bg-zinc-900/20 p-3 rounded-xl border border-zinc-900/50">
-              <span className="text-sm text-zinc-500">{exp.description}</span>
-              <span className="text-sm font-bold text-zinc-400 font-mono">{formatterCOP.format(exp.amount)}</span>
-            </div>
+          {works.map((work) => (
+            <button
+              key={work.id}
+              onClick={() => navigate(`/edit-work/${work.id}`)}
+              className="w-full bg-zinc-900/50 border border-zinc-900 p-4 rounded-2xl flex justify-between items-center hover:border-zinc-700 transition-all"
+            >
+              <div className="text-left">
+                <p className="text-white font-black uppercase italic text-xs tracking-tighter">
+                  {work.artist_profile?.name || 'Artista'}
+                </p>
+                <p className="text-[9px] text-zinc-500 font-bold uppercase">
+                  {new Date(work.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black text-zinc-200 font-mono">
+                  {formatterCOP.format(work.total_price)}
+                </p>
+                <p className="text-[8px] text-zinc-600 font-bold uppercase">Editar</p>
+              </div>
+            </button>
           ))}
         </div>
       </section>

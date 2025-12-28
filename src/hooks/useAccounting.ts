@@ -7,7 +7,7 @@ export interface Artist {
   name: string;
   commission_percentage: number;
   type: 'residente' | 'invitado';
-  max_canvases: number; // Nueva propiedad para control de lienzos
+  max_canvases: number; 
 }
 
 // Interfaz para cada trabajo/tatuaje
@@ -17,7 +17,7 @@ export interface Work {
   total_price: number;
   created_at: string;
   artist_id: string;
-  is_canvas: boolean; // Nueva propiedad para identificar cortesías
+  is_canvas: boolean; 
   artist_profile?: Artist;
 }
 
@@ -29,6 +29,7 @@ export const useAccounting = () => {
   const fetchWorks = useCallback(async (month?: number, year?: number) => {
     setLoading(true);
     try {
+      // Usamos los nombres de tabla confirmados: artist_works y artist_profile
       let query = supabase
         .from('artist_works')
         .select(`
@@ -42,7 +43,7 @@ export const useAccounting = () => {
           )
         `);
 
-      // Filtrado por fecha si se proporcionan parámetros
+      // Filtrado por fecha para que el Dashboard y Cuentas muestren solo el mes elegido
       if (month !== undefined && year !== undefined) {
         const startDate = new Date(year, month, 1).toISOString();
         const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
@@ -71,10 +72,14 @@ export const useAccounting = () => {
     artist_id: string; 
     total_price: number; 
     client_name: string;
-    is_canvas: boolean; // Ahora permitimos registrar si es lienzo
+    is_canvas: boolean; 
   }) => {
+    // Insertamos en artist_works
     const { error } = await supabase.from('artist_works').insert([workData]);
-    if (error) return { success: false, error };
+    if (error) {
+      console.error('Error al registrar trabajo:', error.message);
+      return { success: false, error };
+    }
     return { success: true };
   };
 
