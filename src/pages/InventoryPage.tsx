@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom'; // Importante para el escáner
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { formatterCOP } from '../lib/formatterCOP';
 import { QRCodeSVG } from 'qrcode.react';
@@ -31,7 +31,41 @@ export const InventoryPage = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchInventory(); }, []);
+  useEffect(() => {
+    fetchInventory();
+  
+    // Suscripción en tiempo real corregida
+    const channel = supabase
+      .channel('cambios-inventario')
+      .on(
+        'postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'inventory' 
+        }, 
+        (payload) => {
+          // 1. Convertimos el payload al tipo InventoryItem para evitar el error de 'any'
+          const updatedRecord = payload.new as InventoryItem;
+          
+          console.log('Sincronizando stock en vivo:', updatedRecord.name);
+          
+          // 2. Usamos 'setItems' (el nombre correcto de tu estado)
+          setItems((currentItems) => 
+            currentItems.map((item: InventoryItem) => 
+              item.id === updatedRecord.id 
+                ? { ...item, total_stock: updatedRecord.total_stock } 
+                : item
+            )
+          );
+        }
+      )
+      .subscribe();
+  
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -55,6 +89,8 @@ export const InventoryPage = () => {
   const quickAdjust = async (id: string, currentStock: number, delta: number) => {
     const newStock = Math.max(0, currentStock + delta);
     const { error } = await supabase.from('inventory').update({ total_stock: newStock }).eq('id', id);
+    // Nota: El estado se actualizará solo gracias al Realtime, 
+    // pero mantenemos esto por si la conexión realtime tarda unos ms.
     if (!error) setItems(items.map(item => item.id === id ? { ...item, total_stock: newStock } : item));
   };
 
@@ -122,7 +158,6 @@ export const InventoryPage = () => {
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">Apolo Ink Supply Management</p>
         </div>
         
-        {/* BOTÓN ESCÁNER INTEGRADO EN EL HEADER */}
         <button 
           onClick={() => navigate('/scan')}
           className="bg-white text-black px-8 py-4 rounded-full font-black uppercase text-[10px] tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95 shadow-xl flex items-center gap-3"
@@ -163,7 +198,6 @@ export const InventoryPage = () => {
                             <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
                           </svg>
                         </button>
-                        {/* NUEVO BOTÓN QR */}
                         <button 
                           onClick={() => setSelectedQR({id: item.id, name: item.name})}
                           className="w-10 h-10 bg-zinc-800 border border-zinc-700 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all shadow-lg active:scale-90"
