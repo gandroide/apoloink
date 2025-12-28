@@ -44,7 +44,6 @@ export const ArtistsPage = () => {
     if (!confirm(`¿Quieres archivar a ${name}?`)) return;
   
     try {
-      // Usamos .select() al final para ver qué guardó realmente la DB
       const { data, error } = await supabase
         .from('artist_profile')
         .update({ is_active: false })
@@ -57,16 +56,11 @@ export const ArtistsPage = () => {
         return;
       }
   
-      console.log("Respuesta de la DB tras archivar:", data);
-  
-      // Si data[0].is_active es false, el cambio fue exitoso
       if (data && data[0].is_active === false) {
-        // Forzamos la recarga de los datos para que desaparezca de la lista
         await fetchWorks(); 
       } else {
         console.warn("La DB no guardó el cambio. Revisa los permisos RLS.");
       }
-  
     } catch (err) {
       console.error("Error inesperado:", err);
     }
@@ -111,7 +105,6 @@ export const ArtistsPage = () => {
                   </div>
                 </Link>
                 
-                {/* BOTÓN CON TOOLTIP */}
                 <div className="relative group/tooltip">
                   <button 
                     onClick={() => archiveArtist(artist.id, artist.name)}
@@ -120,8 +113,7 @@ export const ArtistsPage = () => {
                     <span className="text-xl">📥</span>
                   </button>
                   
-                  {/* CUADRO INFORMATIVO (POPUP) */}
-                  <div className="absolute bottom-full right-0 mb-2 w-48 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none">
+                  <div className="absolute bottom-full right-0 mb-2 w-48 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none text-left">
                     <p className="text-[9px] font-black text-white uppercase tracking-widest leading-relaxed">
                       Archivar artista: Se moverá a la lista de antiguos pero mantendrá sus registros.
                     </p>
@@ -130,6 +122,9 @@ export const ArtistsPage = () => {
                 </div>
               </div>
             ))}
+            {activeArtists.length === 0 && (
+              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest py-10">No hay artistas activos registrados.</p>
+            )}
           </div>
         </section>
 
@@ -144,27 +139,35 @@ export const ArtistsPage = () => {
 
               <form onSubmit={handleAddArtist} className="space-y-5 text-left">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1">Nombre Artístico</label>
+                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em]">Nombre Artístico</label>
                   <input 
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-zinc-500 outline-none transition-all text-white"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-zinc-500 outline-none transition-all text-white font-bold"
                     placeholder="Ej: Apolo Ink"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1">% Comisión</label>
+                  {/* TEXTO ACTUALIZADO AQUÍ */}
+                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em] italic">
+                    % de comisión para el artista
+                  </label>
                   <input 
                     type="number"
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-zinc-500"
                     value={newCommission}
                     onChange={(e) => setNewCommission(e.target.value)}
                   />
+                  <p className="text-[8px] text-zinc-600 font-bold uppercase ml-1 opacity-50 tracking-tighter">
+                    * El sistema asignará el resto automáticamente al estudio.
+                  </p>
                 </div>
+
                 <button 
                   disabled={isSaving}
-                  className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all disabled:opacity-50 mt-4"
+                  className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all disabled:opacity-50 mt-4 active:scale-95"
                 >
                   {isSaving ? 'PROCESANDO...' : 'REGISTRAR TALENTO'}
                 </button>
