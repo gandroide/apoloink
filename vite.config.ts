@@ -7,13 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Solo incluimos el favicon si ya lo tienes. 
-      // Si no tienes los otros (apple-touch, etc), es mejor no pedirlos aquí para que no falle el build.
-      includeAssets: ['favicon.ico'], 
+      // Eliminamos includeAssets temporalmente para que Netlify no busque archivos que falten
       manifest: {
         name: 'Apolo Ink Studio',
         short_name: 'ApoloInk',
-        description: 'Sistema de Gestión Apolo Ink Studio',
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',
@@ -22,34 +19,12 @@ export default defineConfig({
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
+            type: 'image/png'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          }
-        ]
-      },
-      // Esto ayuda a que el Service Worker se genere sin problemas en entornos de producción como Netlify
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 semana
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+            type: 'image/png'
           }
         ]
       }
