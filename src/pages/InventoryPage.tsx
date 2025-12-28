@@ -153,7 +153,7 @@ export const InventoryPage = () => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10">
         <div>
           <h2 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter text-white leading-[0.8]">
-            Almacén<span className="text-zinc-700">.</span>Stock
+            Stock
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">Apolo Ink Supply Management</p>
         </div>

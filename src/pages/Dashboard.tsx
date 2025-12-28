@@ -53,7 +53,7 @@ export const Dashboard = () => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 pb-8">
         <div>
           <h1 className="text-5xl md:text-7xl font-black italic text-white uppercase tracking-tighter leading-none">
-            Apolo
+            Dashboard
           </h1>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2">Gestión de Estudio</p>
         </div>
