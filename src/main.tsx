@@ -2,12 +2,22 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-// @ts-ignore
-import { registerSW } from 'virtual:pwa-register';
 
-registerSW({ immediate: true });
+// @ts-ignore: virtual:pwa-register es un módulo generado por Vite
+import { registerSW } from 'virtual:pwa-register'
 
-registerSW({ immediate: true });
+// Registra el Service Worker de forma limpia
+if ('serviceWorker' in navigator) {
+  registerSW({ 
+    immediate: true,
+    onRegistered() {
+      console.log('Apolo Ink PWA: Lista');
+    },
+    onRegisterError(error: unknown) {
+      console.error('Apolo Ink PWA: Error', error);
+    }
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
