@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importante para el escáner
 import { supabase } from '../lib/supabase';
 import { formatterCOP } from '../lib/formatterCOP';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface InventoryItem {
   id: string;
@@ -10,10 +12,12 @@ interface InventoryItem {
 }
 
 export const InventoryPage = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState<{show: boolean, id: string, name: string} | null>(null);
+  const [selectedQR, setSelectedQR] = useState<{id: string, name: string} | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [stock, setStock] = useState('');
@@ -82,13 +86,29 @@ export const InventoryPage = () => {
       
       {/* MODAL ELIMINAR */}
       {showDeleteModal?.show && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
           <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[3rem] w-full max-w-xs text-center space-y-6">
             <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl">⚠️</div>
             <h3 className="text-white font-black uppercase italic text-xl tracking-tighter">¿Eliminar {showDeleteModal.name}?</h3>
             <div className="flex flex-col gap-2 pt-2">
-              <button onClick={confirmDelete} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">ELIMINAR PERMANENTE</button>
+              <button onClick={confirmDelete} className="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">ELIMINAR</button>
               <button onClick={() => setShowDeleteModal(null)} className="w-full bg-zinc-800 text-zinc-400 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">CANCELAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL QR */}
+      {selectedQR && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/95 backdrop-blur-xl" onClick={() => setSelectedQR(null)}>
+          <div className="bg-zinc-900 border border-zinc-800 p-10 rounded-[4rem] max-w-sm w-full text-center space-y-8 animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl font-black italic text-white uppercase tracking-tighter">{selectedQR.name}</h3>
+            <div className="bg-white p-6 rounded-[3rem] inline-block shadow-2xl">
+              <QRCodeSVG value={`apolo-inventory:${selectedQR.id}`} size={200} level={"H"} />
+            </div>
+            <div className="space-y-3">
+              <button onClick={() => window.print()} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Imprimir Etiqueta</button>
+              <button onClick={() => setSelectedQR(null)} className="w-full bg-zinc-800 text-zinc-500 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cerrar</button>
             </div>
           </div>
         </div>
@@ -101,13 +121,19 @@ export const InventoryPage = () => {
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">Apolo Ink Supply Management</p>
         </div>
+        
+        {/* BOTÓN ESCÁNER INTEGRADO EN EL HEADER */}
+        <button 
+          onClick={() => navigate('/scan')}
+          className="bg-white text-black px-8 py-4 rounded-full font-black uppercase text-[10px] tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95 shadow-xl flex items-center gap-3"
+        >
+          <span>📷</span> ESCANEAR SALIDA
+        </button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
-        {/* COLUMNA IZQUIERDA: LISTADO */}
         <section className="lg:col-span-8 order-2 lg:order-1 space-y-8">
-          
           <div className="relative">
             <input 
               className="w-full bg-zinc-900/50 border-2 border-zinc-800/50 p-6 pl-14 rounded-[2rem] text-sm outline-none focus:border-zinc-500 transition-all text-white placeholder:text-zinc-800 font-bold"
@@ -127,23 +153,27 @@ export const InventoryPage = () => {
                   
                   <div className="flex justify-between items-start">
                     <div className="flex gap-4">
-                      {/* INDICADOR Y BOTÓN BASURA */}
                       <div className="flex flex-col gap-4 items-center">
                         <div className={`w-3 h-3 rounded-full shrink-0 ${getStatusColor(item.total_stock)}`} />
                         <button 
                           onClick={() => setShowDeleteModal({show: true, id: item.id, name: item.name})}
                           className="w-10 h-10 bg-red-900/10 border border-red-900/20 text-red-500 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-90"
-                          title="Eliminar ítem"
                         >
-                          {/* ICONO SVG BASURA */}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 5v6m4-6v6"/>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
                           </svg>
+                        </button>
+                        {/* NUEVO BOTÓN QR */}
+                        <button 
+                          onClick={() => setSelectedQR({id: item.id, name: item.name})}
+                          className="w-10 h-10 bg-zinc-800 border border-zinc-700 text-white rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all shadow-lg active:scale-90"
+                        >
+                          <span className="text-xs">QR</span>
                         </button>
                       </div>
 
                       <div onClick={() => startEdit(item)} className="cursor-pointer">
-                        <h4 className="font-black text-xl uppercase text-zinc-100 tracking-tighter group-hover:text-white transition-colors leading-none mb-2">
+                        <h4 className="font-black text-xl uppercase text-zinc-100 tracking-tighter group-hover:text-white leading-none mb-2">
                             {item.name}
                         </h4>
                         <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">
@@ -162,7 +192,6 @@ export const InventoryPage = () => {
                     </div>
                   </div>
 
-                  {/* AJUSTES RÁPIDOS */}
                   <div className="flex gap-2">
                     <button 
                       onClick={() => quickAdjust(item.id, item.total_stock, -1)}
@@ -183,7 +212,6 @@ export const InventoryPage = () => {
           )}
         </section>
 
-        {/* COLUMNA DERECHA: FORMULARIO */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28 space-y-6">
             <section className="bg-zinc-900 border border-zinc-800 p-8 rounded-[3rem] shadow-2xl relative overflow-hidden">

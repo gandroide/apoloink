@@ -49,13 +49,13 @@ export const Dashboard = () => {
   return (
     <div className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 pb-20">
       
-      {/* HEADER DINÁMICO */}
+      {/* HEADER DINÁMICO (Sin cambios) */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 pb-8">
         <div>
           <h1 className="text-5xl md:text-7xl font-black italic text-white uppercase tracking-tighter leading-none">
-            Apolo<span className="text-zinc-700">.</span>Control
+            Apolo
           </h1>
-          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2">Gestión de Estudio Lisbon</p>
+          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2">Gestión de Estudio</p>
         </div>
         
         <div className="flex gap-2 bg-zinc-900/50 p-2 rounded-3xl border border-zinc-800">
@@ -79,10 +79,8 @@ export const Dashboard = () => {
       {/* GRID DE CONTROL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* COLUMNA IZQUIERDA: MÉTRICAS Y ARTISTAS (8/12) */}
+        {/* COLUMNA IZQUIERDA: MÉTRICAS (Sin cambios) */}
         <div className="lg:col-span-8 space-y-8">
-          
-          {/* Card Ventas Brutas (Diseño estirado profesional) */}
           <div className="bg-zinc-900/30 border border-zinc-800 p-8 rounded-[3rem] flex flex-col md:flex-row md:items-center justify-between group hover:bg-zinc-900/50 transition-all">
             <div>
               <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-2">Ventas Brutas Totales</p>
@@ -98,7 +96,6 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* Listado de Artistas con mayor comodidad visual */}
           <section className="bg-zinc-900/10 border border-zinc-800/30 p-8 rounded-[3rem]">
             <div className="flex justify-between items-center mb-6">
               <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">Rendimiento Individual</p>
@@ -108,41 +105,47 @@ export const Dashboard = () => {
           </section>
         </div>
 
-        {/* COLUMNA DERECHA: FINANZAS Y REPORTES (4/12) */}
+        {/* COLUMNA DERECHA: FINANZAS (Corregida) */}
         <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
           
-          {/* Main Profit Card */}
-          <section className={`p-10 rounded-[3rem] shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[220px] ${
+          {/* Main Profit Card CORREGIDA */}
+          <section className={`p-8 md:p-10 rounded-[3.5rem] shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[240px] overflow-hidden ${
             netProfit >= 0 ? 'bg-white text-black' : 'bg-red-600 text-white shadow-red-900/20'
           }`}>
             <div className="flex justify-between items-start">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Real</p>
-              <span className="text-xs font-black px-3 py-1 bg-black/5 rounded-full uppercase tracking-tighter">{MONTHS[selectedMonth]}</span>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Real</p>
+              <span className="text-[9px] font-black px-3 py-1 bg-black/5 rounded-full uppercase tracking-tighter">{MONTHS[selectedMonth]}</span>
             </div>
-            <h3 className="text-5xl font-black tabular-nums tracking-tighter leading-none my-4">
-              {formatterCOP.format(netProfit)}
-            </h3>
-            <p className="text-[9px] font-bold uppercase tracking-widest opacity-40 italic">Balance neto después de gastos</p>
+            
+            <div className="my-6">
+              {/* Ajuste de tamaño: text-4xl base, xl:text-5xl máximo. break-all evita que se salga */}
+              <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none break-all">
+                {formatterCOP.format(netProfit)}
+              </h3>
+            </div>
+
+            <p className="text-[9px] font-bold uppercase tracking-widest opacity-40 italic leading-tight">
+              Balance neto después de gastos
+            </p>
           </section>
 
-          {/* Mini Stats Grid */}
+          {/* Mini Stats Grid (Sin cambios) */}
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] hover:border-emerald-900/50 transition-colors">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
               <p className="text-emerald-500/60 text-[9px] uppercase font-black mb-1">Bruto Estudio</p>
-              <p className="text-xl font-black font-mono text-emerald-500">
+              <p className="text-xl font-black font-mono text-emerald-500 truncate">
                 {formatterCOP.format(studioGross)}
               </p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem] hover:border-red-900/50 transition-colors">
+            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
               <p className="text-red-500/60 text-[9px] uppercase font-black mb-1">Gastos Mes</p>
-              <p className="text-xl font-black font-mono text-red-400">
+              <p className="text-xl font-black font-mono text-red-400 truncate">
                 {formatterCOP.format(totalExpenses)}
               </p>
             </div>
           </div>
 
-          {/* Botón Reporte Profesional */}
           <button 
             onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
             className="w-full bg-white/5 hover:bg-white hover:text-black border border-white/10 text-white py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.3em] transition-all duration-300 flex items-center justify-center gap-3 active:scale-95"
@@ -153,7 +156,7 @@ export const Dashboard = () => {
       </div>
 
       <footer className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.8em] italic">Apolo Ink • Lisbon Studio • Management System 2.0</p>
+        <p className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.8em] italic">Apolo Ink • Management System 2.0</p>
       </footer>
     </div>
   );

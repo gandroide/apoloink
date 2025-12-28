@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Interfaz para el perfil del artista
+// Interfaz para el perfil del artista corregida
 export interface Artist {
   id: string;
   name: string;
   commission_percentage: number;
   type: 'residente' | 'invitado';
-  max_canvases: number; 
+  is_active: boolean; // Ahora garantizado
+  max_canvases?: number; 
 }
 
 // Interfaz para cada trabajo/tatuaje
@@ -29,7 +30,7 @@ export const useAccounting = () => {
   const fetchWorks = useCallback(async (month?: number, year?: number) => {
     setLoading(true);
     try {
-      // Usamos los nombres de tabla confirmados: artist_works y artist_profile
+      // 1. Traemos los trabajos incluyendo el campo 'is_active' en la relación
       let query = supabase
         .from('artist_works')
         .select(`
@@ -39,11 +40,11 @@ export const useAccounting = () => {
             name,
             commission_percentage,
             type,
-            max_canvases
+            max_canvases,
+            is_active
           )
         `);
 
-      // Filtrado por fecha para que el Dashboard y Cuentas muestren solo el mes elegido
       if (month !== undefined && year !== undefined) {
         const startDate = new Date(year, month, 1).toISOString();
         const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
@@ -53,6 +54,7 @@ export const useAccounting = () => {
       const { data: worksData, error: worksError } = await query.order('created_at', { ascending: false });
       if (worksError) throw worksError;
 
+      // 2. Traemos la lista completa de perfiles para la gestión de equipo
       const { data: artistsData, error: artistsError } = await supabase
         .from('artist_profile')
         .select('*')
@@ -74,7 +76,6 @@ export const useAccounting = () => {
     client_name: string;
     is_canvas: boolean; 
   }) => {
-    // Insertamos en artist_works
     const { error } = await supabase.from('artist_works').insert([workData]);
     if (error) {
       console.error('Error al registrar trabajo:', error.message);

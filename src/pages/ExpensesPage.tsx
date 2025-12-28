@@ -58,7 +58,7 @@ export const ExpensesPage = () => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10 text-left">
         <div>
           <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-none">
-            Gastos<span className="text-red-600">.</span>Estudio
+            Gastos
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1"> Control de Egresos y Costos Operativos </p>
         </div>

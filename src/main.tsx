@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
+import App from './App'
 
 // @ts-ignore: virtual:pwa-register es un módulo generado por Vite
 import { registerSW } from 'virtual:pwa-register'

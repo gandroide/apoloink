@@ -50,18 +50,24 @@ export const Accounting = () => {
   return (
     <div className="w-full max-w-[1400px] mx-auto min-h-screen animate-in fade-in duration-700 pb-24 px-4 md:px-10">
       
-      {/* HEADER PROFESIONAL */}
+      {/* HEADER PROFESIONAL (Sin cambios) */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10 text-left">
         <div>
           <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-none">
-            Cuentas<span className="text-zinc-700">.</span>Estudio
+            Registro de Ingresos
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">
             Liquidación de Artistas e Ingresos Netos
           </p>
         </div>
-        
-        {/* Selectores de fecha integrados */}
+
+        <button 
+          onClick={() => navigate('/new-work')}
+          className="bg-white text-black px-4 py-1.5 rounded-full font-black uppercase text-[9px] tracking-widest hover:bg-zinc-200 transition-colors w-fit md:ml-4"
+        >
+          + Registrar Trabajo
+        </button>
+
         <div className="flex gap-2 bg-zinc-900/80 p-2 rounded-2xl border border-zinc-800 self-start md:self-end">
           <select 
             className="bg-transparent text-[10px] font-black uppercase text-zinc-300 px-4 py-2 outline-none cursor-pointer"
@@ -83,8 +89,8 @@ export const Accounting = () => {
       {/* GRID PRINCIPAL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
-        {/* COLUMNA IZQUIERDA: HISTORIAL DE INGRESOS (8/12) */}
-        <section className="lg:col-span-8 space-y-6 order-2 lg:order-1">
+        {/* COLUMNA IZQUIERDA: HISTORIAL (Sin cambios) */}
+        <section className="lg:col-span-8 space-y-6 order-2 lg:order-1 text-left">
           <div className="flex items-center gap-4 mb-4">
             <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Detalle de Trabajos</h3>
             <div className="h-px flex-1 bg-zinc-800 opacity-30"></div>
@@ -117,7 +123,7 @@ export const Accounting = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-black text-zinc-200 font-mono tracking-tighter">
+                      <p className="text-xl font-black text-zinc-200 font-mono tracking-tighter truncate max-w-[150px]">
                         {formatterCOP.format(work.total_price)}
                       </p>
                       <p className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.2em] mt-1 group-hover:text-zinc-400 transition-colors">Ver Detalles →</p>
@@ -129,37 +135,40 @@ export const Accounting = () => {
           )}
         </section>
 
-        {/* COLUMNA DERECHA: LIQUIDACIÓN Y REPORTES (4/12) */}
+        {/* COLUMNA DERECHA: LIQUIDACIÓN CORREGIDA */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28 space-y-6">
             
-            {/* CARD BRUTO ESTUDIO */}
-            <section className="bg-white p-10 rounded-[3rem] shadow-2xl flex flex-col justify-between min-h-[200px]">
+            {/* CARD BRUTO ESTUDIO CON FIX DE TAMAÑO */}
+            <section className="bg-white p-8 md:p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[220px] overflow-hidden">
               <div className="text-left">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-black/40 mb-2">Total Bruto Estudio</p>
-                <h3 className="text-4xl md:text-5xl font-black text-black tabular-nums tracking-tighter leading-none">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 mb-3">Total Bruto Estudio</p>
+                {/* Ajuste: text-3xl base, 4xl en móviles/tablets, 5xl en pantallas grandes.
+                   Añadimos break-all para evitar que el número se salga del margen.
+                */}
+                <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black text-black tabular-nums tracking-tighter leading-none break-all">
                   {formatterCOP.format(totalStudioGross)}
                 </h3>
               </div>
-              <p className="text-[9px] font-bold text-black/30 uppercase tracking-widest italic text-left mt-6">
+              <p className="text-[9px] font-bold text-black/30 uppercase tracking-widest italic text-left mt-8 leading-tight">
                 Ingresos acumulados después de comisiones
               </p>
             </section>
 
-            {/* BOTÓN REPORTE CONTADOR */}
+            {/* BOTÓN REPORTE (Sin cambios significativos, solo ajuste estético) */}
             <button 
               onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
               disabled={loadingWorks || loadingExpenses}
               className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-500 py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 shadow-xl"
             >
               {loadingExpenses ? (
-                <span className="animate-pulse">Procesando...</span>
+                <span className="animate-pulse tracking-widest text-[9px]">GENERANDO REPORTE...</span>
               ) : (
-                <>📊 Reporte para Contador (.CSV)</>
+                <>📊 REPORTE CONTABLE CSV</>
               )}
             </button>
 
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-[2rem] text-left">
+            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-[2.5rem] text-left">
               <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 italic">Nota de Auditoría</p>
               <p className="text-zinc-500 text-[10px] leading-relaxed">
                 Este reporte incluye todos los registros de tatuajes y gastos operativos del periodo seleccionado.
@@ -168,6 +177,7 @@ export const Accounting = () => {
           </div>
         </aside>
       </div>
+
     </div>
   );
 };

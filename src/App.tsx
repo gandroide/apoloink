@@ -1,46 +1,83 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { supabase } from './lib/supabase';
+
+// Páginas
 import { Dashboard } from './pages/Dashboard';
 import { Accounting } from './pages/Accounting';
 import { InventoryPage } from './pages/InventoryPage';
 import { ArtistsPage } from './pages/ArtistsPage';
-import { ArtistDetail } from './pages/ArtistDetails';
+import { ArtistDetails } from './pages/ArtistDetails';
 import { ExpensesPage } from './pages/ExpensesPage';
 import { EditWorkPage } from './pages/EditionWorkPage';
+import { NewWorkPage } from './pages/NewWorkPage';
+import { ArchivedArtistsPage } from './pages/ArchiveArtistPage';
+import { Login } from './pages/Login';
+import { ScannerPage } from './pages/ScannerPage';
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  // Función para cerrar sesión
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
-    <Router>
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans">
-        
-        {/* HEADER FIJO RESPONSIVO */}
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-24 font-sans">
+      
+      {/* HEADER: Solo se muestra si el usuario está logueado */}
+      {user && (
         <header className="p-6 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-2 md:px-6">
             <h1 className="text-xl md:text-2xl font-black tracking-tighter italic text-white uppercase">
               APOLO INK
             </h1>
-            <div className="flex items-center gap-3">
-              <span className="hidden md:block text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Status: Online</span>
-              <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></div>
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-3">
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Status: Online</span>
+                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></div>
+              </div>
+              {/* Botón de Logout pequeño y discreto */}
+              <button 
+                onClick={handleSignOut}
+                className="text-[9px] font-black text-zinc-600 hover:text-red-500 uppercase tracking-widest transition-colors border border-zinc-800 px-3 py-1 rounded-full"
+              >
+                Salir
+              </button>
             </div>
           </div>
         </header>
+      )}
 
-        {/* CUERPO DE LA APP - Liberado para pantallas grandes */}
-        <main className="max-w-7xl mx-auto p-4 md:p-10 lg:p-12">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/accounting" element={<Accounting />} />
-            <Route path="/expenses" element={<ExpensesPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/team" element={<ArtistsPage />} />
-            <Route path="/team/:id" element={<ArtistDetail />} />
-            <Route path="/edit-work/:id" element={<EditWorkPage />} />
-          </Routes>
-        </main>
+      {/* CUERPO DE LA APP */}
+      <main className={`${user ? 'max-w-7xl mx-auto p-4 md:p-10 lg:p-12' : ''}`}>
+        <Routes>
+          {/* Ruta Pública */}
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
 
-        {/* MENÚ INFERIOR (BOTONERA) */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 p-4 pb-8 z-50">
-          {/* max-w-lg mantiene los botones juntos y cómodos al centro en pantallas grandes */}
+          {/* Rutas Protegidas */}
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
+          <Route path="/expenses" element={<ProtectedRoute><ExpensesPage /></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
+          <Route path="/team" element={<ProtectedRoute><ArtistsPage /></ProtectedRoute>} />
+          <Route path="/team/:id" element={<ProtectedRoute><ArtistDetails /></ProtectedRoute>} />
+          <Route path="/edit-work/:id" element={<ProtectedRoute><EditWorkPage /></ProtectedRoute>} />
+          <Route path="/new-work" element={<ProtectedRoute><NewWorkPage /></ProtectedRoute>} />
+          <Route path="/team/archived" element={<ProtectedRoute><ArchivedArtistsPage /></ProtectedRoute>} />
+          <Route path="/scan" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
+
+          {/* Redirección por defecto */}
+          <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
+        </Routes>
+      </main>
+
+      {/* MENÚ INFERIOR: Solo se muestra si el usuario está logueado */}
+      {user && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-xl border-t border-zinc-800 p-4 pb-8 z-50 animate-in slide-in-from-bottom duration-500">
           <div className="max-w-lg mx-auto flex justify-around items-center">
             <NavButton to="/" icon="📊" label="Dash" />
             <NavButton to="/team" icon="👨‍🎨" label="Equipo" />
@@ -49,12 +86,12 @@ function App() {
             <NavButton to="/inventory" icon="📦" label="Stock" />
           </div>
         </nav>
-      </div>
-    </Router>
+      )}
+    </div>
   );
 }
 
-// Componente para los botones del menú que detecta cuál está activo
+// Componente para botones del menú
 function NavButton({ to, icon, label }: { to: string, icon: string, label: string }) {
   const location = useLocation();
   const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
@@ -79,4 +116,13 @@ function NavButton({ to, icon, label }: { to: string, icon: string, label: strin
   );
 }
 
-export default App;
+// App Wrapper con Providers
+export default function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
+  );
+}
