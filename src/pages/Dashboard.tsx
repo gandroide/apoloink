@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAccounting } from '../hooks/useAccounting';
 import { supabase } from '../lib/supabase';
 import { formatterCOP } from '../lib/formatterCOP';
 import { Stats } from '../components/Stats';
 import { generateAccountingReport } from '../lib/reports';
+
+// Importación de Recharts
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
+  LineChart, Line, CartesianGrid 
+} from 'recharts';
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -37,6 +43,42 @@ export const Dashboard = () => {
 
   useEffect(() => { loadData(); }, [selectedMonth, selectedYear]);
 
+  // --- LÓGICA DE PROCESAMIENTO PARA GRÁFICOS ---
+  
+  // 1. Rendimiento por Artista (Bar Chart)
+  const artistChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    works.forEach(w => {
+      const name = w.artist_profile?.name || 'Otro';
+      map[name] = (map[name] || 0) + (w.total_price || 0);
+    });
+    return Object.entries(map).map(([name, total]) => ({ name: name.split(' ')[0], total }));
+  }, [works]);
+
+  // 2. Tendencia de Ventas Diarias (Line Chart)
+const salesTrendData = useMemo(() => {
+    // CORRECCIÓN: Añadida la 'D' de Date que faltaba
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    
+    const days = Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      monto: 0
+    }));
+  
+    works.forEach((w: any) => { // Usamos :any temporalmente para evitar el error de propiedad
+      // CORRECCIÓN: Si tu columna no se llama 'date', cámbiala aquí por 'created_at'
+      const fecha = w.date || w.created_at; 
+      if (fecha) {
+        const day = new Date(fecha).getDate();
+        if (days[day - 1]) {
+          days[day - 1].monto += (w.total_price || 0);
+        }
+      }
+    });
+    return days;
+  }, [works, selectedMonth, selectedYear]);
+
+  // --- CÁLCULOS FINANCIEROS ---
   const totalGrossSales = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
   const studioGross = works.reduce((sum, w) => {
     const artistCommission = w.artist_profile?.commission_percentage || 50;
@@ -47,15 +89,15 @@ export const Dashboard = () => {
   const netProfit = studioGross - totalExpenses;
 
   return (
-    <div className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 pb-20">
+    <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 pb-32 text-left">
       
-      {/* HEADER DINÁMICO (Sin cambios) */}
+      {/* HEADER DINÁMICO */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 pb-8">
         <div>
           <h1 className="text-5xl md:text-7xl font-black italic text-white uppercase tracking-tighter leading-none">
             Dashboard
           </h1>
-          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2">Gestión de Estudio</p>
+          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2 ml-1">Apolo Intel Intelligence</p>
         </div>
         
         <div className="flex gap-2 bg-zinc-900/50 p-2 rounded-3xl border border-zinc-800">
@@ -76,71 +118,91 @@ export const Dashboard = () => {
         </div>
       </header>
 
-      {/* GRID DE CONTROL */}
+      {/* MÉTRICAS PRINCIPALES */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* COLUMNA IZQUIERDA: MÉTRICAS (Sin cambios) */}
         <div className="lg:col-span-8 space-y-8">
+          {/* Card de Ventas Brutas */}
           <div className="bg-zinc-900/30 border border-zinc-800 p-8 rounded-[3rem] flex flex-col md:flex-row md:items-center justify-between group hover:bg-zinc-900/50 transition-all">
             <div>
               <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-2">Ventas Brutas Totales</p>
-              <p className="text-4xl md:text-5xl font-black font-mono text-white tracking-tighter">
+              <p className="text-4xl md:text-6xl font-black font-mono text-white tracking-tighter italic">
                 {formatterCOP.format(totalGrossSales)}
               </p>
             </div>
-            <div className="mt-4 md:mt-0 flex items-center gap-4">
-               <div className="h-12 w-24 bg-zinc-800/50 rounded-full flex items-center justify-center border border-zinc-700/50">
-                  <span className="text-xs font-black text-zinc-500">CASHFLOW</span>
-               </div>
-               <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">💰</span>
+            <span className="text-5xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">📈</span>
+          </div>
+
+          {/* SECCIÓN DE GRÁFICOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Gráfico de Barras: Artistas */}
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2.5rem]">
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 italic">Producción por Artista</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={artistChartData}>
+                    <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#18181b', border: 'none', borderRadius: '12px'}} />
+                    <Bar dataKey="total" fill="#ffffff" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Gráfico de Líneas: Tendencia Mensual */}
+            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2.5rem]">
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 italic">Pulso del Mes</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={salesTrendData}>
+                    <CartesianGrid stroke="#18181b" vertical={false} />
+                    <XAxis dataKey="day" stroke="#3f3f46" fontSize={10} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{backgroundColor: '#18181b', border: 'none', borderRadius: '12px'}} />
+                    <Line type="monotone" dataKey="monto" stroke="#ffffff" strokeWidth={3} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
+          {/* Stats de Artistas (Componente existente) */}
           <section className="bg-zinc-900/10 border border-zinc-800/30 p-8 rounded-[3rem]">
             <div className="flex justify-between items-center mb-6">
-              <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">Rendimiento Individual</p>
+              <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">Rendimiento Detallado</p>
               <div className="h-px flex-1 bg-zinc-800 mx-4 opacity-30"></div>
             </div>
             <Stats works={works} />
           </section>
         </div>
 
-        {/* COLUMNA DERECHA: FINANZAS (Corregida) */}
+        {/* COLUMNA DERECHA: FINANZAS */}
         <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
           
-          {/* Main Profit Card CORREGIDA */}
-          <section className={`p-8 md:p-10 rounded-[3.5rem] shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[240px] overflow-hidden ${
-            netProfit >= 0 ? 'bg-white text-black' : 'bg-red-600 text-white shadow-red-900/20'
+          <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] ${
+            netProfit >= 0 ? 'bg-white text-black' : 'bg-red-600 text-white'
           }`}>
-            <div className="flex justify-between items-start">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Real</p>
-              <span className="text-[9px] font-black px-3 py-1 bg-black/5 rounded-full uppercase tracking-tighter">{MONTHS[selectedMonth]}</span>
-            </div>
-            
-            <div className="my-6">
-              {/* Ajuste de tamaño: text-4xl base, xl:text-5xl máximo. break-all evita que se salga */}
-              <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none break-all">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Neta</p>
+              <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">
                 {formatterCOP.format(netProfit)}
               </h3>
             </div>
-
             <p className="text-[9px] font-bold uppercase tracking-widest opacity-40 italic leading-tight">
-              Balance neto después de gastos
+              Calculado tras comisiones y gastos operativos.
             </p>
           </section>
 
-          {/* Mini Stats Grid (Sin cambios) */}
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
-              <p className="text-emerald-500/60 text-[9px] uppercase font-black mb-1">Bruto Estudio</p>
-              <p className="text-xl font-black font-mono text-emerald-500 truncate">
+              <p className="text-emerald-500/60 text-[9px] uppercase font-black mb-1">Caja Estudio</p>
+              <p className="text-xl font-black font-mono text-emerald-500">
                 {formatterCOP.format(studioGross)}
               </p>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
-              <p className="text-red-500/60 text-[9px] uppercase font-black mb-1">Gastos Mes</p>
-              <p className="text-xl font-black font-mono text-red-400 truncate">
+              <p className="text-red-500/60 text-[9px] uppercase font-black mb-1">Gastos Operativos</p>
+              <p className="text-xl font-black font-mono text-red-400">
                 {formatterCOP.format(totalExpenses)}
               </p>
             </div>
@@ -148,16 +210,12 @@ export const Dashboard = () => {
 
           <button 
             onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
-            className="w-full bg-white/5 hover:bg-white hover:text-black border border-white/10 text-white py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.3em] transition-all duration-300 flex items-center justify-center gap-3 active:scale-95"
+            className="w-full bg-zinc-900 hover:bg-white hover:text-black border border-zinc-800 text-zinc-400 py-6 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.3em] transition-all flex items-center justify-center gap-3 active:scale-95"
           >
-            📊 Reporte Contador CSV
+            📁 Exportar CSV Contador
           </button>
         </aside>
       </div>
-
-      <footer className="pt-12 border-t border-zinc-900 text-center">
-        <p className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.8em] italic">Apolo Ink • Management System 2.0</p>
-      </footer>
     </div>
   );
 };
