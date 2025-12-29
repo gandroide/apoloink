@@ -75,6 +75,7 @@ export const useAccounting = () => {
     total_price: number; 
     client_name: string;
     is_canvas: boolean; 
+    date?: string;
   }) => {
     const { error } = await supabase.from('artist_works').insert([workData]);
     if (error) {

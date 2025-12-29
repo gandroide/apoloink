@@ -33,7 +33,7 @@ function AppContent() {
         <header className="p-6 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto flex justify-between items-center px-2 md:px-6">
             <h1 className="text-xl md:text-2xl font-black tracking-tighter italic text-white uppercase">
-              APOLO INK
+            AXIS ops
             </h1>
             <div className="flex items-center gap-6">
               <div className="hidden md:flex items-center gap-3">

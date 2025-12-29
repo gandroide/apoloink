@@ -11,7 +11,7 @@ export const generateArtistReport = (artist: Artist, works: Work[], monthName: s
 
   // Estilo del PDF
   doc.setFontSize(20);
-  doc.text('APOLO INK - LIQUIDACIÓN', 14, 22);
+  doc.text('AXIS ops - LIQUIDACIÓN', 14, 22);
   doc.setFontSize(10);
   doc.text(`Artista: ${artist.name.toUpperCase()}`, 14, 32);
   doc.text(`Periodo: ${monthName}`, 14, 38);
@@ -45,7 +45,7 @@ export const sendWhatsAppSummary = (artist: Artist, works: Work[], monthName: st
   const totalProduced = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
   const artistShare = (totalProduced * artist.commission_percentage) / 100;
   
-  const message = `*APOLO INK - RESUMEN MENSUAL*%0A` +
+  const message = `*AXIS ops - RESUMEN MENSUAL*%0A` +
     `--------------------------------%0A` +
     `*Artista:* ${artist.name}%0A` +
     `*Mes:* ${monthName}%0A` +

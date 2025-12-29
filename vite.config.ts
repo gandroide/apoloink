@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Eliminamos includeAssets temporalmente para que Netlify no busque archivos que falten
       manifest: {
-        name: 'Apolo Ink Studio',
-        short_name: 'ApoloInk',
+        name: 'AXIS ops',
+        short_name: 'AXIS',
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',

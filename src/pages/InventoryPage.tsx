@@ -155,7 +155,7 @@ export const InventoryPage = () => {
           <h2 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter text-white leading-[0.8]">
             Stock
           </h2>
-          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">Apolo Ink Supply Management</p>
+          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">AXIS ops Supply Management</p>
         </div>
         
         <button 

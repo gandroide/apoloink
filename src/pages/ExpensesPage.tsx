@@ -18,6 +18,8 @@ export const ExpensesPage = () => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Servicios');
+  // Inicializamos con la fecha de hoy
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchExpenses = async () => {
@@ -31,7 +33,7 @@ export const ExpensesPage = () => {
       if (error) throw error;
       setExpenses(data || []);
     } catch (err) {
-      console.error("Error cargando gastos:", err);
+      console.error("Error cargando gastos en AXIS.ops:", err);
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,8 @@ export const ExpensesPage = () => {
           description, 
           amount: parseFloat(amount), 
           category,
-          date: new Date().toISOString() // Aseguramos la fecha actual
+          // Enviamos la fecha seleccionada con una hora fija para evitar desfases de zona horaria
+          date: `${expenseDate}T12:00:00Z`
         }
       ]);
 
@@ -60,6 +63,7 @@ export const ExpensesPage = () => {
       setDescription(''); 
       setAmount('');
       setCategory('Servicios');
+      setExpenseDate(new Date().toISOString().split('T')[0]);
       await fetchExpenses();
     } catch (err) {
       console.error("Error al guardar gasto:", err);
@@ -80,7 +84,7 @@ export const ExpensesPage = () => {
             Gastos<span className="text-red-600">.</span>
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">
-            Control de Egresos y Costos Operativos
+            AXIS.ops • Control de Egresos
           </p>
         </div>
         
@@ -89,7 +93,7 @@ export const ExpensesPage = () => {
             <span className="text-red-500 text-xl font-black italic">↓</span>
           </div>
           <div>
-            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Total Salida Acumulada</p>
+            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Salida Acumulada</p>
             <p className="text-3xl font-black text-white font-mono tracking-tighter">
               {formatterCOP.format(totalExpenses)}
             </p>
@@ -99,28 +103,28 @@ export const ExpensesPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
-        {/* COLUMNA IZQUIERDA: HISTORIAL */}
+        {/* HISTORIAL */}
         <section className="lg:col-span-8 space-y-6 order-2 lg:order-1">
           <div className="flex items-center gap-4 mb-4">
-            <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Historial de Transacciones</h3>
+            <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Flujo de Caja Negativo</h3>
             <div className="h-px flex-1 bg-zinc-800 opacity-30"></div>
           </div>
 
           {loading ? (
             <div className="py-20 text-center animate-pulse text-zinc-800 text-xs font-black uppercase tracking-[0.5em]">
-              Sincronizando flujos de caja...
+              Sincronizando AXIS.ops...
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {expenses.length === 0 ? (
                 <div className="py-20 border-2 border-dashed border-zinc-900 rounded-[3rem] text-center">
-                   <p className="text-zinc-700 font-black uppercase text-[10px] tracking-widest">No hay egresos registrados este mes</p>
+                   <p className="text-zinc-700 font-black uppercase text-[10px] tracking-widest">Sin egresos registrados</p>
                 </div>
               ) : (
                 expenses.map((exp) => (
                   <div 
                     key={exp.id} 
-                    className="bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 hover:border-red-900/20 transition-all duration-300 gap-4"
+                    className="bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 transition-all duration-300 gap-4"
                   >
                     <div className="flex items-center gap-5">
                       <div className="h-12 w-12 bg-zinc-950 border border-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:text-red-500 transition-colors uppercase text-[10px]">
@@ -135,16 +139,14 @@ export const ExpensesPage = () => {
                             {exp.category}
                           </span>
                           <span className="text-[9px] text-zinc-600 font-bold uppercase italic tracking-tighter">
-                            {new Date(exp.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                            {new Date(exp.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="w-full md:w-auto text-left md:text-right border-t md:border-t-0 border-zinc-800/50 pt-3 md:pt-0">
-                      <p className="text-2xl font-black text-red-500 font-mono tracking-tighter">
-                        -{formatterCOP.format(exp.amount)}
-                      </p>
-                    </div>
+                    <p className="text-2xl font-black text-red-500 font-mono tracking-tighter">
+                      -{formatterCOP.format(exp.amount)}
+                    </p>
                   </div>
                 ))
               )}
@@ -152,46 +154,56 @@ export const ExpensesPage = () => {
           )}
         </section>
 
-        {/* COLUMNA DERECHA: FORMULARIO */}
+        {/* FORMULARIO */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28">
             <section className="bg-zinc-900 border border-zinc-800 p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative overflow-hidden">
-              {/* Decoración sutil */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] rounded-full -mr-16 -mt-16"></div>
-
               <div className="text-left relative">
-                <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-1">Caja Chica / Local</h3>
+                <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-1">AXIS.ops Ops</h3>
                 <p className="text-2xl font-black italic text-white uppercase tracking-tighter">Registrar Salida</p>
               </div>
 
               <form onSubmit={handleAddExpense} className="space-y-4 text-left relative">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Descripción del Gasto</label>
+                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Descripción</label>
                   <input 
-                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm focus:border-red-900/50 outline-none transition-all text-white font-bold placeholder:text-zinc-800"
-                    placeholder="Ej: Pago de Luz Diciembre"
+                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm focus:border-red-900/50 outline-none transition-all text-white font-bold"
+                    placeholder="Ej: Insumos de limpieza"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Monto (COP)</label>
-                  <input 
-                    type="number"
-                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm font-mono text-white focus:border-red-900/50 outline-none"
-                    placeholder="0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Monto COP</label>
+                    <input 
+                      type="number"
+                      className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm font-mono text-white outline-none"
+                      placeholder="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest italic">Fecha del Pago</label>
+                    <input 
+                      type="date"
+                      className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm text-white font-bold outline-none cursor-pointer font-mono"
+                      value={expenseDate}
+                      onChange={(e) => setExpenseDate(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Categoría</label>
                   <select 
-                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-[10px] font-black uppercase text-zinc-400 outline-none cursor-pointer appearance-none hover:border-zinc-700 transition-colors"
+                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-[10px] font-black uppercase text-zinc-400 outline-none cursor-pointer appearance-none"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                   >
@@ -206,9 +218,9 @@ export const ExpensesPage = () => {
 
                 <button 
                   disabled={isSaving}
-                  className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 mt-6"
+                  className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
-                  {isSaving ? 'PROCESANDO...' : 'CONFIRMAR SALIDA'}
+                  {isSaving ? 'Sincronizando...' : 'Confirmar Gasto'}
                 </button>
               </form>
             </section>

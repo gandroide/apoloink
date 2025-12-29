@@ -142,7 +142,7 @@ export const ArtistsPage = () => {
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em]">Nombre Artístico</label>
                   <input 
                     className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-zinc-500 outline-none transition-all text-white font-bold"
-                    placeholder="Ej: Apolo Ink"
+                    placeholder="Ej: AXIS ops"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     required

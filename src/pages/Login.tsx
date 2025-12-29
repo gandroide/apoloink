@@ -108,7 +108,7 @@ export const Login = () => {
         </div>
 
         <p className="text-[9px] text-zinc-800 font-black uppercase tracking-[0.4em] italic text-center">
-          Apolo Ink Management • 2025
+        AXIS ops Management • 2025
         </p>
       </div>
     </div>

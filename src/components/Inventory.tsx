@@ -30,7 +30,7 @@ export const Inventory = () => {
             Stock<span className="text-zinc-700">.</span>Insumos
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">
-            Control de Materiales Apolo Ink
+            Control de Materiales AXIS ops
           </p>
         </div>
         

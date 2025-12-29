@@ -11,10 +11,10 @@ if ('serviceWorker' in navigator) {
   registerSW({ 
     immediate: true,
     onRegistered() {
-      console.log('Apolo Ink PWA: Lista');
+      console.log('AXIS ops PWA: Lista');
     },
     onRegisterError(error: unknown) {
-      console.error('Apolo Ink PWA: Error', error);
+      console.error('AXIS ops PWA: Error', error);
     }
   });
 }

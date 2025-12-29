@@ -1,63 +1,64 @@
+import { Link } from 'react-router-dom';
 import { formatterCOP } from '../lib/formatterCOP';
 
-interface StatsProps {
-  works: any[];
-}
-
-export const Stats = ({ works }: StatsProps) => {
-  // Agrupamos los trabajos por artista
-  const artistPerformance = works.reduce((acc: any, work) => {
-    const artistName = work.artist_profile?.name || 'Sin Asignar';
-    if (!acc[artistName]) {
-      acc[artistName] = { 
-        name: artistName, 
-        total: 0, 
+export const Stats = ({ works }: { works: any[] }) => {
+  // Agrupamos por artista
+  const performance = works.reduce((acc: any, work) => {
+    const artist = work.artist_profile;
+    if (!artist) return acc;
+    
+    if (!acc[artist.id]) {
+      acc[artist.id] = {
+        id: artist.id,
+        name: artist.name,
+        total: 0,
         count: 0,
-        studioContribution: 0 
+        studioShare: 0
       };
     }
     
-    acc[artistName].total += work.total_price;
-    acc[artistName].count += 1;
+    const commission = artist.commission_percentage || 50;
+    const studioPart = (work.total_price * (100 - commission)) / 100;
     
-    const artistCommission = work.artist_profile?.commission_percentage || 50;
-    const studioPart = (100 - artistCommission) / 100;
-    acc[artistName].studioContribution += (work.total_price * studioPart);
-    
+    acc[artist.id].total += work.total_price;
+    acc[artist.id].studioShare += studioPart;
+    acc[artist.id].count += 1;
     return acc;
   }, {});
 
-  const artists = Object.values(artistPerformance);
-
   return (
-    <div className="space-y-3">
-      {artists.length === 0 ? (
-        <p className="text-center text-zinc-700 text-[10px] py-4 uppercase font-black italic">
-          Sin actividad este período
-        </p>
-      ) : (
-        artists.map((artist: any) => (
-          <div key={artist.name} className="bg-zinc-900/30 border border-zinc-900 p-4 rounded-2xl flex justify-between items-center group hover:border-zinc-800 transition-all">
-            <div className="space-y-1">
-              <h5 className="text-white font-black uppercase italic text-xs tracking-tighter">
-                {artist.name}
-               Marques
-              </h5>
-              <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                {artist.count} {artist.count === 1 ? 'Tatuaje' : 'Tatuajes'}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Object.values(performance).map((artist: any) => (
+        <Link 
+          key={artist.id} 
+          to={`/team/${artist.id}`} 
+          className="group block bg-zinc-900/30 border border-zinc-800 p-6 rounded-[2.5rem] hover:bg-zinc-900/60 transition-all active:scale-[0.98]"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-black text-lg uppercase text-white italic tracking-tighter group-hover:text-emerald-400 transition-colors">
+              {artist.name}
+            </h4>
+            <span className="text-[10px] font-black text-zinc-600 uppercase bg-black px-3 py-1 rounded-full">
+              {artist.count} {artist.count === 1 ? 'Tatuaje' : 'Tatuajes'}
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Total Bruto</p>
+              <p className="text-xl font-black font-mono text-white">
+                {formatterCOP.format(artist.total)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs font-black text-zinc-200 font-mono">
-                {formatterCOP.format(artist.total)}
-              </p>
-              <p className="text-[8px] text-emerald-500/70 font-bold uppercase">
-                Estudio: {formatterCOP.format(artist.studioContribution)}
+              <p className="text-[9px] font-black text-emerald-500/50 uppercase tracking-widest">Estudio</p>
+              <p className="text-sm font-black font-mono text-emerald-500">
+                {formatterCOP.format(artist.studioShare)}
               </p>
             </div>
           </div>
-        ))
-      )}
+        </Link>
+      ))}
     </div>
   );
 };

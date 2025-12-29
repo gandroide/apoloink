@@ -208,12 +208,25 @@ const salesTrendData = useMemo(() => {
             </div>
           </div>
 
+          {/* BOTÓN REPORTE (Sin cambios significativos, solo ajuste estético) */}
           <button 
-            onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
-            className="w-full bg-zinc-900 hover:bg-white hover:text-black border border-zinc-800 text-zinc-400 py-6 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.3em] transition-all flex items-center justify-center gap-3 active:scale-95"
-          >
-            📁 Exportar CSV Contador
-          </button>
+              onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
+              disabled={loadingWorks || loadingExpenses}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-500 py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 shadow-xl"
+            >
+              {loadingExpenses ? (
+                <span className="animate-pulse tracking-widest text-[9px]">GENERANDO REPORTE...</span>
+              ) : (
+                <>📊 REPORTE CONTABLE CSV</>
+              )}
+            </button>
+
+            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-[2.5rem] text-left">
+              <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 italic">Nota de Auditoría</p>
+              <p className="text-zinc-500 text-[10px] leading-relaxed">
+                Este reporte incluye todos los registros de tatuajes y gastos operativos del periodo seleccionado.
+              </p>
+            </div>
         </aside>
       </div>
     </div>
