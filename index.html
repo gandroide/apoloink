@@ -7,6 +7,24 @@
     <meta name="theme-color" content="#09090b">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>apoloink-studio</title>
+    <script>
+      (function() {
+        const savedTheme = localStorage.getItem('axis-theme') || 'dark';
+        const themes = {
+          dark: { bg: '#000000', surface: '#0a0a0a', primary: '#ffffff', accent: '#10b981', border: '#1a1a1a' },
+          light: { bg: '#fafafa', surface: '#ffffff', primary: '#000000', accent: '#020617', border: '#e5e7eb' }
+        };
+        const theme = themes[savedTheme];
+        if (theme) {
+          const root = document.documentElement;
+          root.style.setProperty('--brand-bg', theme.bg);
+          root.style.setProperty('--brand-surface', theme.surface);
+          root.style.setProperty('--brand-primary', theme.primary);
+          root.style.setProperty('--brand-accent', theme.accent);
+          root.style.setProperty('--brand-border', theme.border);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

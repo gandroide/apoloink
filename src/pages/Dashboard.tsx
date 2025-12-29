@@ -16,14 +16,61 @@ const MONTHS = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
+// --- MOTOR DE TEMAS AXIS.ops ---
+const THEMES = [
+  { 
+    id: 'dark', 
+    name: 'Elegant Dark', 
+    colors: { 
+      bg: '#000000',           
+      surface: '#0a0a0a',      
+      primary: '#ffffff',      
+      accent: '#10b981',       
+      border: '#1a1a1a'        
+    } 
+  },
+  { 
+    id: 'light', 
+    name: 'Business Light', 
+    colors: { 
+      bg: '#fafafa',           
+      surface: '#ffffff',      
+      primary: '#000000',      
+      accent: '#020617',       
+      border: '#e5e7eb'        
+    } 
+  }
+];
+
 export const Dashboard = () => {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('axis-theme') || 'dark');
   
+  // Ahora usamos loadingWorks del hook
   const { fetchWorks, works, loading: loadingWorks } = useAccounting();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
+
+  const applyTheme = (themeId: string) => {
+    const theme = THEMES.find(t => t.id === themeId);
+    if (theme) {
+      const root = document.documentElement;
+      root.style.setProperty('--brand-bg', theme.colors.bg);
+      root.style.setProperty('--brand-surface', theme.colors.surface);
+      root.style.setProperty('--brand-primary', theme.colors.primary);
+      root.style.setProperty('--brand-accent', theme.colors.accent);
+      root.style.setProperty('--brand-border', theme.colors.border);
+      localStorage.setItem('axis-theme', themeId);
+      setCurrentTheme(themeId);
+    }
+  };
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('axis-theme') || 'dark';
+    applyTheme(savedTheme);
+  }, []);
 
   const loadData = async () => {
     setLoadingExpenses(true);
@@ -43,9 +90,7 @@ export const Dashboard = () => {
 
   useEffect(() => { loadData(); }, [selectedMonth, selectedYear]);
 
-  // --- LÓGICA DE PROCESAMIENTO PARA GRÁFICOS ---
-  
-  // 1. Rendimiento por Artista (Bar Chart)
+  // --- LÓGICA DE GRÁFICOS ---
   const artistChartData = useMemo(() => {
     const map: Record<string, number> = {};
     works.forEach(w => {
@@ -55,180 +100,170 @@ export const Dashboard = () => {
     return Object.entries(map).map(([name, total]) => ({ name: name.split(' ')[0], total }));
   }, [works]);
 
-  // 2. Tendencia de Ventas Diarias (Line Chart)
-const salesTrendData = useMemo(() => {
-    // CORRECCIÓN: Añadida la 'D' de Date que faltaba
+  const salesTrendData = useMemo(() => {
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-    
-    const days = Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
-      monto: 0
-    }));
-  
-    works.forEach((w: any) => { // Usamos :any temporalmente para evitar el error de propiedad
-      // CORRECCIÓN: Si tu columna no se llama 'date', cámbiala aquí por 'created_at'
+    const days = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, monto: 0 }));
+    works.forEach((w: any) => {
       const fecha = w.date || w.created_at; 
       if (fecha) {
         const day = new Date(fecha).getDate();
-        if (days[day - 1]) {
-          days[day - 1].monto += (w.total_price || 0);
-        }
+        if (days[day - 1]) days[day - 1].monto += (w.total_price || 0);
       }
     });
     return days;
   }, [works, selectedMonth, selectedYear]);
 
-  // --- CÁLCULOS FINANCIEROS ---
+  // --- CÁLCULOS ---
   const totalGrossSales = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
   const studioGross = works.reduce((sum, w) => {
     const artistCommission = w.artist_profile?.commission_percentage || 50;
-    const studioPercentage = (100 - artistCommission) / 100;
-    return sum + (w.total_price * studioPercentage);
+    return sum + (w.total_price * ((100 - artistCommission) / 100));
   }, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const netProfit = studioGross - totalExpenses;
 
+  const cardBase = "bg-brand-surface border border-brand-border p-8 rounded-[3rem] transition-all duration-500";
+
   return (
-    <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 pb-32 text-left">
+    <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-700 pb-32 text-left bg-brand-bg text-brand-primary min-h-screen">
       
-      {/* HEADER DINÁMICO */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 pb-8">
-        <div>
-          <h1 className="text-5xl md:text-7xl font-black italic text-white uppercase tracking-tighter leading-none">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-brand-border pb-8">
+        <div className="text-left">
+          <h1 className="text-5xl md:text-7xl font-black italic text-brand-primary uppercase tracking-tighter leading-none">
             Dashboard
           </h1>
-          <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-2 ml-1">Apolo Intel Intelligence</p>
+          <p className="text-[10px] md:text-xs font-bold text-brand-muted uppercase tracking-[0.4em] mt-2 ml-1">
+            AXIS.ops Intelligence
+          </p>
         </div>
         
-        <div className="flex gap-2 bg-zinc-900/50 p-2 rounded-3xl border border-zinc-800">
-          <select 
-            className="bg-transparent text-xs font-black uppercase text-zinc-300 px-4 py-2 outline-none appearance-none cursor-pointer"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-          >
-            {MONTHS.map((m, i) => <option key={m} value={i} className="bg-zinc-900">{m}</option>)}
-          </select>
-          <select 
-            className="bg-transparent text-xs font-black uppercase text-zinc-300 px-4 py-2 outline-none appearance-none cursor-pointer border-l border-zinc-800"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          >
-            {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-zinc-900">{y}</option>)}
-          </select>
+        <div className="flex flex-col sm:flex-row items-start md:items-center justify-start md:justify-end gap-3 w-full md:w-auto">
+          {/* Selector de Temas */}
+          <div className="flex bg-brand-surface border border-brand-border p-1.5 rounded-2xl md:rounded-full gap-1 shadow-lg">
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => applyTheme(t.id)}
+                className={`flex items-center justify-center gap-2 px-3 py-2 md:px-5 md:py-2.5 rounded-xl md:rounded-full transition-all duration-300 ${
+                  currentTheme === t.id ? 'bg-brand-primary text-brand-bg scale-105' : 'text-brand-muted'
+                }`}
+              >
+                <span className="text-sm">{t.id === 'dark' ? '🌙' : '☀️'}</span>
+                <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{t.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Filtros */}
+          <div className="flex gap-2 bg-brand-surface p-1.5 rounded-2xl border border-brand-border shadow-lg">
+            <select 
+              className="bg-transparent text-[10px] font-black uppercase text-brand-primary px-3 py-2 outline-none appearance-none cursor-pointer"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            >
+              {MONTHS.map((m, i) => <option key={m} value={i} className="bg-brand-surface">{m}</option>)}
+            </select>
+            <select 
+              className="bg-transparent text-[10px] font-black uppercase text-brand-primary px-3 py-2 outline-none appearance-none cursor-pointer border-l border-brand-border"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            >
+              {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-brand-surface">{y}</option>)}
+            </select>
+          </div>
         </div>
       </header>
 
-      {/* MÉTRICAS PRINCIPALES */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        <div className="lg:col-span-8 space-y-8">
-          {/* Card de Ventas Brutas */}
-          <div className="bg-zinc-900/30 border border-zinc-800 p-8 rounded-[3rem] flex flex-col md:flex-row md:items-center justify-between group hover:bg-zinc-900/50 transition-all">
-            <div>
-              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-2">Ventas Brutas Totales</p>
-              <p className="text-4xl md:text-6xl font-black font-mono text-white tracking-tighter italic">
-                {formatterCOP.format(totalGrossSales)}
-              </p>
-            </div>
-            <span className="text-5xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500">📈</span>
-          </div>
-
-          {/* SECCIÓN DE GRÁFICOS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Gráfico de Barras: Artistas */}
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2.5rem]">
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 italic">Producción por Artista</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={artistChartData}>
-                    <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#18181b', border: 'none', borderRadius: '12px'}} />
-                    <Bar dataKey="total" fill="#ffffff" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Gráfico de Líneas: Tendencia Mensual */}
-            <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-[2.5rem]">
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 italic">Pulso del Mes</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={salesTrendData}>
-                    <CartesianGrid stroke="#18181b" vertical={false} />
-                    <XAxis dataKey="day" stroke="#3f3f46" fontSize={10} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{backgroundColor: '#18181b', border: 'none', borderRadius: '12px'}} />
-                    <Line type="monotone" dataKey="monto" stroke="#ffffff" strokeWidth={3} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats de Artistas (Componente existente) */}
-          <section className="bg-zinc-900/10 border border-zinc-800/30 p-8 rounded-[3rem]">
-            <div className="flex justify-between items-center mb-6">
-              <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest italic">Rendimiento Detallado</p>
-              <div className="h-px flex-1 bg-zinc-800 mx-4 opacity-30"></div>
-            </div>
-            <Stats works={works} />
-          </section>
+      {/* Pantalla de Carga Global (Opcional) */}
+      {(loadingWorks || loadingExpenses) && works.length === 0 ? (
+        <div className="py-20 text-center animate-pulse text-brand-muted font-black uppercase text-xs tracking-[0.5em]">
+          Sincronizando AXIS.ops...
         </div>
-
-        {/* COLUMNA DERECHA: FINANZAS */}
-        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
-          
-          <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] ${
-            netProfit >= 0 ? 'bg-white text-black' : 'bg-red-600 text-white'
-          }`}>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Neta</p>
-              <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">
-                {formatterCOP.format(netProfit)}
-              </h3>
-            </div>
-            <p className="text-[9px] font-bold uppercase tracking-widest opacity-40 italic leading-tight">
-              Calculado tras comisiones y gastos operativos.
-            </p>
-          </section>
-
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
-              <p className="text-emerald-500/60 text-[9px] uppercase font-black mb-1">Caja Estudio</p>
-              <p className="text-xl font-black font-mono text-emerald-500">
-                {formatterCOP.format(studioGross)}
-              </p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-8 space-y-8">
+            {/* Ventas Brutas */}
+            <div className={`${cardBase} flex flex-col md:flex-row md:items-center justify-between group hover:border-brand-accent/40`}>
+              <div>
+                <p className="text-brand-muted text-[10px] uppercase font-black tracking-[0.3em] mb-2">Ventas Brutas Totales</p>
+                <p className={`text-4xl md:text-6xl font-black font-mono text-brand-primary tracking-tighter italic ${loadingWorks ? 'opacity-20' : 'opacity-100'}`}>
+                  {formatterCOP.format(totalGrossSales)}
+                </p>
+              </div>
+              <div className={`h-16 w-16 bg-brand-accent/10 rounded-full flex items-center justify-center text-3xl ${loadingWorks ? 'animate-spin' : 'group-hover:rotate-12'} transition-transform`}>
+                {loadingWorks ? '🔄' : '⚡'}
+              </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2rem]">
-              <p className="text-red-500/60 text-[9px] uppercase font-black mb-1">Gastos Operativos</p>
-              <p className="text-xl font-black font-mono text-red-400">
-                {formatterCOP.format(totalExpenses)}
-              </p>
+            {/* Gráficos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-brand-surface border border-brand-border p-6 rounded-[2.5rem]">
+                <h3 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-6 italic">Producción por Artista</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={artistChartData}>
+                      <XAxis dataKey="name" stroke="var(--brand-primary)" fontSize={10} axisLine={false} tickLine={false} opacity={0.3} />
+                      <Tooltip cursor={{fill: 'var(--brand-bg)'}} contentStyle={{backgroundColor: 'var(--brand-surface)', border: '1px solid var(--brand-border)', borderRadius: '12px'}} />
+                      <Bar dataKey="total" fill="var(--brand-accent)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-brand-surface border border-brand-border p-6 rounded-[2.5rem]">
+                <h3 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-6 italic">Tendencia Diaria</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={salesTrendData}>
+                      <CartesianGrid stroke="var(--brand-border)" vertical={false} opacity={0.5} />
+                      <XAxis dataKey="day" stroke="var(--brand-primary)" fontSize={10} axisLine={false} tickLine={false} opacity={0.3} />
+                      <Tooltip contentStyle={{backgroundColor: 'var(--brand-surface)', border: '1px solid var(--brand-border)', borderRadius: '12px'}} />
+                      <Line type="monotone" dataKey="monto" stroke="var(--brand-primary)" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
+
+            <section className="bg-brand-surface/20 border border-brand-border p-8 rounded-[3rem]">
+              <Stats works={works} />
+            </section>
           </div>
 
-          {/* BOTÓN REPORTE (Sin cambios significativos, solo ajuste estético) */}
-          <button 
+          {/* Sidebar */}
+          <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
+            <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] transition-all duration-500 ${
+              netProfit >= 0 ? 'bg-brand-primary text-brand-bg' : 'bg-brand-danger text-brand-primary'
+            }`}>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Operativa Neta</p>
+                <h3 className={`text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4 ${(loadingWorks || loadingExpenses) ? 'animate-pulse' : ''}`}>
+                  {formatterCOP.format(netProfit)}
+                </h3>
+              </div>
+            </section>
+
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+              <div className="bg-brand-surface border border-brand-border p-6 rounded-[2rem]">
+                <p className="text-brand-accent text-[9px] uppercase font-black mb-1 opacity-60">Estudio Gross</p>
+                <p className="text-xl font-black font-mono text-brand-accent">{formatterCOP.format(studioGross)}</p>
+              </div>
+              <div className="bg-brand-surface border border-brand-border p-6 rounded-[2rem]">
+                <p className="text-brand-danger text-[9px] uppercase font-black mb-1 opacity-60">Gastos Totales</p>
+                <p className="text-xl font-black font-mono text-brand-danger">{formatterCOP.format(totalExpenses)}</p>
+              </div>
+            </div>
+
+            <button 
               onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)}
               disabled={loadingWorks || loadingExpenses}
-              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-500 py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50 shadow-xl"
+              className="w-full bg-brand-primary text-brand-bg py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl hover:opacity-90 transition-all disabled:opacity-50"
             >
-              {loadingExpenses ? (
-                <span className="animate-pulse tracking-widest text-[9px]">GENERANDO REPORTE...</span>
-              ) : (
-                <>📊 REPORTE CONTABLE CSV</>
-              )}
+              { (loadingWorks || loadingExpenses) ? 'Sincronizando...' : '📊 EXPORTAR AXIS.ops CSV' }
             </button>
-
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-[2.5rem] text-left">
-              <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 italic">Nota de Auditoría</p>
-              <p className="text-zinc-500 text-[10px] leading-relaxed">
-                Este reporte incluye todos los registros de tatuajes y gastos operativos del periodo seleccionado.
-              </p>
-            </div>
-        </aside>
-      </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 };

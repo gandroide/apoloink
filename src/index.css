@@ -2,23 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Limpieza de la librería QR */
-#reader {
-  border: none !important;
+:root {
+  /* AXIS.ops Default: Elegant Dark */
+  --brand-bg: #000000;
+  --brand-surface: #0a0a0a;
+  --brand-primary: #ffffff;
+  --brand-accent: #10b981;
+  --brand-border: #1a1a1a;
+  --brand-danger: #ef4444;
+  --brand-text-muted: #71717a;
 }
 
-/* Esconde los botones y textos automáticos que no queremos */
-#reader__dashboard_section_csr, 
-#reader__dashboard_section_fsr,
-#reader img,
-#reader__status_span {
-  display: none !important;
+/* Configuración Envolvente del Body */
+body {
+  @apply antialiased;
+  /* Fondo con degradado radial para eliminar el cuadro negro plano */
+  background: radial-gradient(circle at center, var(--brand-surface) 0%, var(--brand-bg) 100%);
+  background-attachment: fixed;
+  color: var(--brand-primary);
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+  min-height: 100vh;
+  margin: 0;
 }
 
-/* Asegura que el video ocupe el contenedor redondeado que creamos */
-#reader video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  border-radius: 3rem !important;
+/* Scrollbar Estilo Business */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--brand-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--brand-border);
+  border-radius: 10px;
+  border: 1px solid var(--brand-bg);
+}
+
+@layer components {
+  .axis-card {
+    @apply bg-[var(--brand-surface)] border border-[var(--brand-border)] transition-all duration-500;
+  }
+  
+  /* El contenedor principal que "flota" */
+  .app-container {
+    @apply bg-[var(--brand-surface)] border border-[var(--brand-border)] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all duration-700;
+  }
+}
+
+/* Ajuste dinámico de selección */
+::selection {
+  background-color: var(--brand-accent);
+  color: #000;
 }
