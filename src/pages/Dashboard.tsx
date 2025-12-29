@@ -5,7 +5,6 @@ import { formatterCOP } from '../lib/formatterCOP';
 import { Stats } from '../components/Stats';
 import { generateAccountingReport } from '../lib/reports';
 
-// Eliminamos YAxis de la importación si no lo vas a usar
 import { 
   BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, 
   LineChart, Line, CartesianGrid 
@@ -94,10 +93,27 @@ export const Dashboard = () => {
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const netProfit = studioGross - totalExpenses;
 
+  // Componente de nota para reutilizar
+  const AccountingNote = () => (
+    <div className="mt-4 p-4 md:p-6 bg-brand-surface/30 border border-brand-border rounded-[2rem] w-full transition-all">
+      <div className="flex items-start gap-3">
+        <span className="text-brand-accent text-lg">💡</span>
+        <div className="space-y-1 text-left">
+          <p className="text-[10px] font-black text-brand-primary uppercase tracking-widest">
+            Reporte para Contabilidad
+          </p>
+          <p className="text-[10px] md:text-xs text-brand-muted leading-relaxed font-medium">
+            Este archivo exporta el balance detallado de ingresos y gastos. 
+            Diseñado para ser procesado directamente por tu contador en Excel o software financiero.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-700 pb-32 text-left bg-brand-bg text-brand-primary min-h-screen">
       
-      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-brand-border pb-6">
         <div>
           <h1 className="text-4xl md:text-7xl font-black italic text-brand-primary uppercase tracking-tighter leading-none">Dashboard</h1>
@@ -123,22 +139,18 @@ export const Dashboard = () => {
         </div>
       </header>
 
-      {/* TABS MOBILE */}
       <div className="flex md:hidden bg-brand-surface border border-brand-border p-1 rounded-2xl overflow-hidden shadow-lg">
         <button onClick={() => setActiveTab('overview')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-brand-primary text-brand-bg rounded-xl' : 'text-brand-muted'}`}>Datos</button>
         <button onClick={() => setActiveTab('charts')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'charts' ? 'bg-brand-primary text-brand-bg rounded-xl' : 'text-brand-muted'}`}>Graficos</button>
         <button onClick={() => setActiveTab('team')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'team' ? 'bg-brand-primary text-brand-bg rounded-xl' : 'text-brand-muted'}`}>Equipo</button>
       </div>
 
-      {/* DASHBOARD CONTENT */}
       {(loadingWorks || loadingExpenses) && works.length === 0 ? (
         <div className="py-20 text-center animate-pulse text-brand-muted font-black uppercase text-xs tracking-[0.5em]">Sincronizando AXIS.ops...</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           <div className="lg:col-span-8 space-y-8">
-            
-            {/* OVERVIEW */}
             <div className={`${activeTab === 'overview' ? 'block' : 'hidden md:block'} space-y-6`}>
                 <div className="bg-brand-surface border border-brand-border p-6 md:p-8 rounded-[2.5rem] flex items-center justify-between group">
                   <div>
@@ -162,7 +174,6 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            {/* CHARTS (Sin usar YAxis para mayor limpieza) */}
             <div className={`${activeTab === 'charts' ? 'block' : 'hidden md:block'} grid grid-cols-1 md:grid-cols-2 gap-6`}>
                 <div className="bg-brand-surface border border-brand-border p-6 rounded-[2.5rem]">
                   <h3 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-6 italic">Artistas</h3>
@@ -191,7 +202,6 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            {/* TEAM */}
             <div className={`${activeTab === 'team' ? 'block' : 'hidden md:block'}`}>
               <section className="bg-brand-surface/20 border border-brand-border p-4 md:p-8 rounded-[3rem]">
                 <Stats works={works} />
@@ -199,7 +209,6 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {/* ASIDE DESKTOP */}
           <aside className="hidden lg:block lg:col-span-4 space-y-6 lg:sticky lg:top-8">
             <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] ${netProfit >= 0 ? 'bg-brand-primary text-brand-bg' : 'bg-brand-danger text-brand-primary'}`}>
               <div>
@@ -220,13 +229,18 @@ export const Dashboard = () => {
             <button onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)} className="w-full bg-brand-primary text-brand-bg py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl hover:opacity-90">
                 📊 EXPORTAR CSV
             </button>
+            
+            {/* NOTA PARA DESKTOP */}
+            <AccountingNote />
           </aside>
 
-          {/* MOBILE EXPORT */}
-          <div className="lg:hidden w-full mt-4">
+          <div className="lg:hidden w-full mt-4 flex flex-col gap-4">
              <button onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)} className="w-full bg-brand-primary text-brand-bg py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em]">
                 📊 EXPORTAR AXIS.ops CSV
             </button>
+            
+            {/* NOTA PARA MOBILE */}
+            <AccountingNote />
           </div>
         </div>
       )}
