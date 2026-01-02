@@ -17,13 +17,13 @@ export const EditWorkPage = () => {
     const loadData = async () => {
       setLoading(true);
       
-      // 1. Cargar lista de artistas (Tabla: artist_profile)
+      // 1. Cargar lista de artistas (CORRECCIÓN: 'profiles')
       const { data: artistsData } = await supabase
-        .from('artist_profile') 
+        .from('profiles') 
         .select('*');
       setArtists(artistsData || []);
 
-      // 2. Cargar los datos del trabajo actual (Tabla: artist_works)
+      // 2. Cargar los datos del trabajo actual
       const { data: work, error } = await supabase
         .from('artist_works')
         .select('*')
@@ -31,7 +31,6 @@ export const EditWorkPage = () => {
         .single();
 
       if (work) {
-        // Usamos total_price que es el nombre que tienes en tu lógica
         setPrice(work.total_price.toString());
         setArtistId(work.artist_id);
       }
@@ -50,7 +49,6 @@ export const EditWorkPage = () => {
     e.preventDefault();
     setSaving(true);
 
-    // Actualizamos en la tabla correcta: artist_works
     const { error } = await supabase
       .from('artist_works')
       .update({
@@ -71,7 +69,6 @@ export const EditWorkPage = () => {
     const confirm = window.confirm("¿Seguro que quieres eliminar este ingreso?");
     if (!confirm) return;
 
-    // Eliminamos en la tabla correcta: artist_works
     const { error } = await supabase
       .from('artist_works')
       .delete()

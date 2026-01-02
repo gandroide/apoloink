@@ -13,8 +13,9 @@ export const ArchivedArtistsPage = () => {
 
   const reactivateArtist = async (id: string, name: string) => {
     if (confirm(`¿Quieres reactivar a ${name}?`)) {
+      // CORRECCIÓN AQUÍ: 'profiles'
       const { error } = await supabase
-        .from('artist_profile')
+        .from('profiles')
         .update({ is_active: true })
         .eq('id', id);
       

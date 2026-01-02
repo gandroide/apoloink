@@ -15,10 +15,10 @@ export const ExpensesPage = () => {
   const [loading, setLoading] = useState(true);
   
   // Estados para el formulario
+  const [editingId, setEditingId] = useState<string | null>(null); // ID del gasto en edición
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Servicios');
-  // Inicializamos con la fecha de hoy
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,32 +41,65 @@ export const ExpensesPage = () => {
 
   useEffect(() => { fetchExpenses(); }, []);
 
-  const handleAddExpense = async (e: React.FormEvent) => {
+  // Función para cargar los datos en el formulario
+  const startEdit = (expense: Expense) => {
+    setEditingId(expense.id);
+    setDescription(expense.description);
+    setAmount(expense.amount.toString());
+    setCategory(expense.category);
+    // Ajustamos la fecha para que el input type="date" la lea bien (YYYY-MM-DD)
+    setExpenseDate(expense.date.split('T')[0]);
+    
+    // Scroll suave hacia arriba para móviles
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDescription('');
+    setAmount('');
+    setCategory('Servicios');
+    setExpenseDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount || isSaving) return;
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('expenses').insert([
-        { 
-          description, 
-          amount: parseFloat(amount), 
-          category,
-          // Enviamos la fecha seleccionada con una hora fija para evitar desfases de zona horaria
-          date: `${expenseDate}T12:00:00Z`
-        }
-      ]);
+      const expenseData = {
+        description,
+        amount: parseFloat(amount),
+        category,
+        date: `${expenseDate}T12:00:00Z` // Hora fija para evitar desfases
+      };
+
+      let error;
+
+      if (editingId) {
+        // MODO EDICIÓN: Actualizamos el registro existente
+        const { error: updateError } = await supabase
+          .from('expenses')
+          .update(expenseData)
+          .eq('id', editingId);
+        error = updateError;
+      } else {
+        // MODO CREACIÓN: Insertamos uno nuevo
+        const { error: insertError } = await supabase
+          .from('expenses')
+          .insert([expenseData]);
+        error = insertError;
+      }
 
       if (error) throw error;
 
       // Limpiar y recargar
-      setDescription(''); 
-      setAmount('');
-      setCategory('Servicios');
-      setExpenseDate(new Date().toISOString().split('T')[0]);
+      cancelEdit(); // Resetea formulario y estado de edición
       await fetchExpenses();
     } catch (err) {
       console.error("Error al guardar gasto:", err);
+      alert("Error guardando el gasto. Revisa la consola.");
     } finally {
       setIsSaving(false);
     }
@@ -124,17 +157,23 @@ export const ExpensesPage = () => {
                 expenses.map((exp) => (
                   <div 
                     key={exp.id} 
-                    className="bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 transition-all duration-300 gap-4"
+                    className={`bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 transition-all duration-300 gap-4 ${editingId === exp.id ? 'border-red-500/50 bg-red-900/10' : ''}`}
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="h-12 w-12 bg-zinc-950 border border-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:text-red-500 transition-colors uppercase text-[10px]">
-                        {exp.category.substring(0, 2)}
-                      </div>
+                    <div className="flex items-center gap-5 w-full md:w-auto">
+                      {/* BOTÓN DE EDITAR (Visible al hacer hover en Desktop, siempre visible en móvil si se desea ajustar) */}
+                      <button 
+                        onClick={() => startEdit(exp)}
+                        className="h-12 w-12 bg-zinc-950 border border-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 hover:text-white hover:bg-zinc-800 hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-lg"
+                        title="Editar Gasto"
+                      >
+                         ✎
+                      </button>
+
                       <div>
                         <h4 className="font-black text-lg uppercase text-zinc-200 tracking-tight leading-none mb-2 group-hover:text-white transition-colors">
                           {exp.description}
                         </h4>
-                        <div className="flex gap-3 items-center">
+                        <div className="flex gap-3 items-center flex-wrap">
                           <span className="text-[8px] bg-zinc-800/80 px-3 py-1 rounded-full text-zinc-500 font-black uppercase tracking-widest border border-zinc-700/50">
                             {exp.category}
                           </span>
@@ -144,9 +183,12 @@ export const ExpensesPage = () => {
                         </div>
                       </div>
                     </div>
-                    <p className="text-2xl font-black text-red-500 font-mono tracking-tighter">
-                      -{formatterCOP.format(exp.amount)}
-                    </p>
+                    
+                    <div className="flex items-center justify-between w-full md:w-auto pl-16 md:pl-0">
+                      <p className="text-2xl font-black text-red-500 font-mono tracking-tighter">
+                        -{formatterCOP.format(exp.amount)}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
@@ -157,13 +199,26 @@ export const ExpensesPage = () => {
         {/* FORMULARIO */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28">
-            <section className="bg-zinc-900 border border-zinc-800 p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative overflow-hidden">
-              <div className="text-left relative">
-                <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-1">AXIS.ops Ops</h3>
-                <p className="text-2xl font-black italic text-white uppercase tracking-tighter">Registrar Salida</p>
+            <section className={`bg-zinc-900 border ${editingId ? 'border-red-500/50' : 'border-zinc-800'} p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative overflow-hidden transition-colors duration-500`}>
+              
+              <div className="text-left relative flex justify-between items-start">
+                <div>
+                  <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-1">AXIS.ops Ops</h3>
+                  <p className="text-2xl font-black italic text-white uppercase tracking-tighter">
+                    {editingId ? 'Modificar Gasto' : 'Registrar Salida'}
+                  </p>
+                </div>
+                {editingId && (
+                  <button 
+                    onClick={cancelEdit}
+                    className="bg-zinc-800 text-zinc-400 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 hover:text-white transition-all"
+                  >
+                    Cancelar
+                  </button>
+                )}
               </div>
 
-              <form onSubmit={handleAddExpense} className="space-y-4 text-left relative">
+              <form onSubmit={handleSaveExpense} className="space-y-4 text-left relative">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Descripción</label>
                   <input 
@@ -218,9 +273,13 @@ export const ExpensesPage = () => {
 
                 <button 
                   disabled={isSaving}
-                  className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 mt-4"
+                  className={`w-full py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 ${
+                    editingId 
+                      ? 'bg-red-600 text-white hover:bg-red-500' 
+                      : 'bg-white text-black hover:bg-zinc-200'
+                  }`}
                 >
-                  {isSaving ? 'Sincronizando...' : 'Confirmar Gasto'}
+                  {isSaving ? 'Guardando...' : editingId ? 'Actualizar Registro' : 'Confirmar Gasto'}
                 </button>
               </form>
             </section>

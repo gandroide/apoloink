@@ -17,11 +17,13 @@ export const ArtistDetails = () => {
   useEffect(() => {
     const fetchArtistData = async () => {
       setLoading(true);
-      const { data: profile } = await supabase.from('artist_profile').select('*').eq('id', id).single();
+      // CORRECCIÓN AQUÍ: 'profiles'
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
       const { data: jobs } = await supabase.from('artist_works').select('*').eq('artist_id', id);
 
       const { data: allWorks } = await supabase.from('artist_works').select('artist_id, total_price');
-      const { data: allArtists } = await supabase.from('artist_profile').select('id, name');
+      // CORRECCIÓN AQUÍ TAMBIÉN: 'profiles'
+      const { data: allArtists } = await supabase.from('profiles').select('id, name');
 
       if (allWorks && allArtists) {
         const artistTotals = allArtists.map(a => {
@@ -51,7 +53,6 @@ export const ArtistDetails = () => {
   const artistLiquidation = (totalInvoiced * artistRate) / 100;
   const studioContribution = (totalInvoiced * studioRate) / 100;
 
-  // WHATSAPP RECORREGIDO
   const handleWhatsAppShare = () => {
     const total = formatterCOP.format(totalInvoiced);
     const liquidacion = formatterCOP.format(artistLiquidation);
@@ -77,12 +78,10 @@ _Generado por ESTRUCTO_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(messageText)}`, '_blank');
   };
 
-  // PDF CORREGIDO (Error fillColor solucionado)
   const generatePDF = () => {
     const doc = new jsPDF();
     const dateStr = new Date().toLocaleDateString();
 
-    // Header ESTRUCTO
     doc.setFillColor(24, 24, 27);
     doc.rect(0, 0, 210, 40, 'F');
     doc.setTextColor(255, 255, 255);
@@ -91,14 +90,12 @@ _Generado por ESTRUCTO_`;
     doc.setFontSize(10);
     doc.text('REPORTE DE RENDIMIENTO PROFESIONAL', 15, 28);
 
-    // Info Artista
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(16);
     doc.text(`${artist?.name}`, 15, 55);
     doc.setFontSize(10);
     doc.text(`Ranking: #${rank} | Fecha: ${dateStr}`, 15, 62);
 
-    // Tabla de Métricas
     autoTable(doc, {
       startY: 70,
       head: [['Concepto', 'Monto']],
@@ -107,11 +104,10 @@ _Generado por ESTRUCTO_`;
         [`Comisión Artista (${artistRate}%)`, formatterCOP.format(artistLiquidation)],
         [`Aporte Estudio (${studioRate}%)`, formatterCOP.format(studioContribution)],
       ],
-      headStyles: { fillColor: [24, 24, 27] }, // CORRECCIÓN AQUÍ
+      headStyles: { fillColor: [24, 24, 27] }, 
       styles: { font: 'helvetica' }
     });
 
-    // Tabla de Historial
     doc.text('DETALLE DE TRABAJOS', 15, (doc as any).lastAutoTable.finalY + 15);
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 20,
@@ -121,7 +117,7 @@ _Generado por ESTRUCTO_`;
         w.client_name || 'N/A',
         formatterCOP.format(w.total_price)
       ]),
-      headStyles: { fillColor: [0, 0, 0] } // CORRECCIÓN AQUÍ
+      headStyles: { fillColor: [0, 0, 0] } 
     });
 
     doc.save(`Reporte_${artist?.name}.pdf`);

@@ -23,7 +23,11 @@ export const ArtistsPage = () => {
     if (!newName || isSaving) return;
 
     setIsSaving(true);
-    const { error } = await supabase.from('artist_profile').insert([
+    
+    // CORRECCIÓN: Apuntamos a la tabla 'profiles'
+    // IMPORTANTE: Si te da error de "studio_id null", avísame para agregar la lógica del ID del estudio.
+    // Por ahora asumo que tu base de datos o RLS lo está inyectando automáticamente.
+    const { error } = await supabase.from('profiles').insert([
       { 
         name: newName, 
         type: 'residente', 
@@ -35,7 +39,10 @@ export const ArtistsPage = () => {
     if (!error) {
       setNewName('');
       setNewCommission('50');
-      fetchWorks();
+      fetchWorks(); // Recargamos la lista usando el hook corregido
+    } else {
+      console.error("Error al crear:", error.message);
+      alert(error.message);
     }
     setIsSaving(false);
   };
@@ -44,8 +51,9 @@ export const ArtistsPage = () => {
     if (!confirm(`¿Quieres archivar a ${name}?`)) return;
   
     try {
+      // CORRECCIÓN: Apuntamos a la tabla 'profiles'
       const { data, error } = await supabase
-        .from('artist_profile')
+        .from('profiles')
         .update({ is_active: false })
         .eq('id', id)
         .select();
@@ -56,7 +64,8 @@ export const ArtistsPage = () => {
         return;
       }
   
-      if (data && data[0].is_active === false) {
+      // Verificamos si se actualizó
+      if (data && data.length > 0 && data[0].is_active === false) {
         await fetchWorks(); 
       } else {
         console.warn("La DB no guardó el cambio. Revisa los permisos RLS.");
@@ -150,7 +159,6 @@ export const ArtistsPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  {/* TEXTO ACTUALIZADO AQUÍ */}
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em] italic">
                     % de comisión para el artista
                   </label>

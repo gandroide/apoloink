@@ -7,20 +7,20 @@ export const NewWorkPage = () => {
   const [loading, setLoading] = useState(false);
   const [artists, setArtists] = useState<any[]>([]);
   
-  // Actualizamos el estado inicial para incluir 'date'
   const [formData, setFormData] = useState({ 
     artist_id: '', 
     client_name: '', 
     total_price: '',
-    date: new Date().toISOString().split('T')[0] // Fecha de hoy por defecto
+    date: new Date().toISOString().split('T')[0] 
   });
 
   useEffect(() => {
     const fetchArtists = async () => {
+      // CORRECCIÓN AQUÍ: 'profiles'
       const { data } = await supabase
-        .from('artist_profile')
+        .from('profiles')
         .select('*')
-        .eq('is_active', true); // Solo artistas activos
+        .eq('is_active', true);
       setArtists(data || []);
     };
     fetchArtists();
@@ -30,12 +30,11 @@ export const NewWorkPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Registramos en la tabla 'artist_works' con la fecha seleccionada
     const { error } = await supabase.from('artist_works').insert([{
       artist_id: formData.artist_id,
       client_name: formData.client_name,
       total_price: parseFloat(formData.total_price),
-      created_at: `${formData.date}T12:00:00Z` // Forzamos la fecha elegida
+      created_at: `${formData.date}T12:00:00Z` 
     }]);
 
     if (!error) {
@@ -50,7 +49,6 @@ export const NewWorkPage = () => {
   return (
     <div className="w-full max-w-4xl mx-auto min-h-screen p-4 md:p-10 animate-in slide-in-from-bottom duration-500 text-left">
       
-      {/* NAVEGACIÓN SUPERIOR */}
       <nav className="mb-10 md:mb-16">
         <button 
           onClick={() => navigate('/accounting')}
@@ -65,7 +63,6 @@ export const NewWorkPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
         
-        {/* COLUMNA INFO AXIS.ops */}
         <div>
           <header>
             <h2 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter text-white leading-[0.85]">
@@ -80,10 +77,8 @@ export const NewWorkPage = () => {
           </header>
         </div>
 
-        {/* COLUMNA FORMULARIO */}
         <form onSubmit={handleSubmit} className="space-y-6 bg-zinc-900/20 p-6 md:p-10 rounded-[2.5rem] border border-zinc-900/50 shadow-2xl">
           
-          {/* ARTISTA */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">Talento Responsable</label>
             <select 
@@ -97,7 +92,6 @@ export const NewWorkPage = () => {
             </select>
           </div>
 
-          {/* CLIENTE */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">Nombre del Cliente</label>
             <input 
@@ -109,7 +103,6 @@ export const NewWorkPage = () => {
             />
           </div>
 
-          {/* FECHA DEL TRABAJO */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">Fecha de Ejecución</label>
             <input 
@@ -121,7 +114,6 @@ export const NewWorkPage = () => {
             />
           </div>
 
-          {/* MONTO */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">Monto Bruto (COP)</label>
             <input 

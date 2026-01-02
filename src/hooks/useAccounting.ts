@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Interfaz para el perfil del artista corregida
+// Interfaz para el perfil del artista (Ahora mapea a la tabla 'profiles')
 export interface Artist {
   id: string;
   name: string;
   commission_percentage: number;
   type: 'residente' | 'invitado';
-  is_active: boolean; // Ahora garantizado
+  is_active: boolean; 
   max_canvases?: number; 
 }
 
@@ -19,6 +19,7 @@ export interface Work {
   created_at: string;
   artist_id: string;
   is_canvas: boolean; 
+  // Mantenemos el nombre viejo aquí para no romper tus componentes visuales
   artist_profile?: Artist;
 }
 
@@ -30,12 +31,15 @@ export const useAccounting = () => {
   const fetchWorks = useCallback(async (month?: number, year?: number) => {
     setLoading(true);
     try {
-      // 1. Traemos los trabajos incluyendo el campo 'is_active' en la relación
+      // 1. Traemos los trabajos
+      // SOLUCIÓN AL ERROR PGRST201:
+      // Usamos "!artist_works_artist_id_fkey" para ser EXPLICITOS sobre qué relación usar.
+      // Esto le dice a Supabase: "Usa el puente original, ignora cualquier duplicado".
       let query = supabase
         .from('artist_works')
         .select(`
           *,
-          artist_profile (
+          artist_profile:profiles!artist_works_artist_id_fkey (
             id,
             name,
             commission_percentage,
@@ -52,17 +56,21 @@ export const useAccounting = () => {
       }
 
       const { data: worksData, error: worksError } = await query.order('created_at', { ascending: false });
+      
       if (worksError) throw worksError;
 
-      // 2. Traemos la lista completa de perfiles para la gestión de equipo
+      // 2. Traemos la lista completa de perfiles (CAMBIO: tabla 'profiles')
       const { data: artistsData, error: artistsError } = await supabase
-        .from('artist_profile')
+        .from('profiles') 
         .select('*')
         .order('name', { ascending: true });
+        
       if (artistsError) throw artistsError;
 
-      setWorks(worksData || []);
-      setArtists(artistsData || []);
+      // Conversión de tipos segura
+      setWorks((worksData as any) || []);
+      setArtists((artistsData as any) || []);
+
     } catch (error) {
       console.error('Error en fetchWorks:', error);
     } finally {
@@ -77,6 +85,7 @@ export const useAccounting = () => {
     is_canvas: boolean; 
     date?: string;
   }) => {
+    // Aquí no cambia nada porque 'artist_works' sigue existiendo igual
     const { error } = await supabase.from('artist_works').insert([workData]);
     if (error) {
       console.error('Error al registrar trabajo:', error.message);
