@@ -18,20 +18,48 @@ export const ArtistsPage = () => {
   // Solo mostramos los que están activos
   const activeArtists = artists.filter(a => a.is_active !== false);
 
+  // --- LÓGICA DE SEGURIDAD PARA PORCENTAJES ---
+  const handlePercentageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+
+    // 1. Si borran todo, dejar vacío
+    if (value === '') {
+      setNewCommission('');
+      return;
+    }
+
+    // 2. Convertir y validar
+    let numValue = parseFloat(value);
+
+    // 3. REGLA DE ORO: Bloquear números locos
+    if (numValue > 100) numValue = 100;
+    if (numValue < 0) numValue = 0;
+
+    setNewCommission(numValue.toString());
+  };
+  // ---------------------------------------------
+
   const handleAddArtist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || isSaving) return;
 
     setIsSaving(true);
     
-    // CORRECCIÓN: Apuntamos a la tabla 'profiles'
-    // IMPORTANTE: Si te da error de "studio_id null", avísame para agregar la lógica del ID del estudio.
-    // Por ahora asumo que tu base de datos o RLS lo está inyectando automáticamente.
+    // Convertimos a número final
+    const finalCommission = parseFloat(newCommission || '0');
+
+    // Doble chequeo de seguridad
+    if (finalCommission > 100) {
+      alert("Error: La comisión no puede ser mayor al 100%");
+      setIsSaving(false);
+      return;
+    }
+
     const { error } = await supabase.from('profiles').insert([
       { 
-        name: newName, 
+        name: newName.toUpperCase(), // Guardar siempre en mayúsculas queda mejor
         type: 'residente', 
-        commission_percentage: parseFloat(newCommission),
+        commission_percentage: finalCommission,
         is_active: true 
       }
     ]);
@@ -39,7 +67,7 @@ export const ArtistsPage = () => {
     if (!error) {
       setNewName('');
       setNewCommission('50');
-      fetchWorks(); // Recargamos la lista usando el hook corregido
+      fetchWorks(); 
     } else {
       console.error("Error al crear:", error.message);
       alert(error.message);
@@ -51,7 +79,6 @@ export const ArtistsPage = () => {
     if (!confirm(`¿Quieres archivar a ${name}?`)) return;
   
     try {
-      // CORRECCIÓN: Apuntamos a la tabla 'profiles'
       const { data, error } = await supabase
         .from('profiles')
         .update({ is_active: false })
@@ -64,8 +91,7 @@ export const ArtistsPage = () => {
         return;
       }
   
-      // Verificamos si se actualizó
-      if (data && data.length > 0 && data[0].is_active === false) {
+      if (data && data.length > 0) {
         await fetchWorks(); 
       } else {
         console.warn("La DB no guardó el cambio. Revisa los permisos RLS.");
@@ -121,13 +147,6 @@ export const ArtistsPage = () => {
                   >
                     <span className="text-xl">📥</span>
                   </button>
-                  
-                  <div className="absolute bottom-full right-0 mb-2 w-48 p-3 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none text-left">
-                    <p className="text-[9px] font-black text-white uppercase tracking-widest leading-relaxed">
-                      Archivar artista: Se moverá a la lista de antiguos pero mantendrá sus registros.
-                    </p>
-                    <div className="absolute top-full right-5 w-2 h-2 bg-zinc-900 border-r border-b border-zinc-800 rotate-45 -translate-y-1"></div>
-                  </div>
                 </div>
               </div>
             ))}
@@ -150,7 +169,7 @@ export const ArtistsPage = () => {
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em]">Nombre Artístico</label>
                   <input 
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-zinc-500 outline-none transition-all text-white font-bold"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm focus:border-zinc-500 outline-none transition-all text-white font-bold placeholder:text-zinc-700"
                     placeholder="Ej: AXIS ops"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -159,18 +178,39 @@ export const ArtistsPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em] italic">
-                    % de comisión para el artista
-                  </label>
+                  <div className="flex justify-between items-end">
+                    <label className="text-[9px] font-black text-zinc-600 uppercase ml-1 tracking-[0.2em] italic">
+                      % Comisión Artista
+                    </label>
+                    <span className="text-[9px] font-black text-emerald-500">{newCommission || 0}%</span>
+                  </div>
+                  
                   <input 
                     type="number"
-                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-zinc-500"
+                    min="0"
+                    max="100"
+                    className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-emerald-500 transition-colors"
                     value={newCommission}
-                    onChange={(e) => setNewCommission(e.target.value)}
+                    onChange={handlePercentageChange} // Usamos la nueva función segura
                   />
-                  <p className="text-[8px] text-zinc-600 font-bold uppercase ml-1 opacity-50 tracking-tighter">
-                    * El sistema asignará el resto automáticamente al estudio.
-                  </p>
+                  
+                  {/* BARRA VISUAL DE REPARTO */}
+                  <div className="bg-zinc-950 rounded-xl p-4 mt-2 border border-zinc-800/50">
+                    <div className="flex justify-between text-[8px] font-black uppercase text-zinc-500 mb-2 tracking-wider">
+                        <span>Artista</span>
+                        <span>Estudio</span>
+                    </div>
+                    <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex">
+                        <div 
+                            className="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
+                            style={{width: `${parseFloat(newCommission || '0')}%`}} 
+                        />
+                        <div className="h-full bg-zinc-700 flex-1" />
+                    </div>
+                    <p className="text-[8px] text-zinc-600 font-bold uppercase mt-2 text-right opacity-60">
+                        El estudio retiene el {100 - parseFloat(newCommission || '0')}%
+                    </p>
+                  </div>
                 </div>
 
                 <button 

@@ -161,15 +161,15 @@ export const InventoryPage = () => {
   };
 
   // =================================================================
-  // FUNCIÓN CORREGIDA: LOGICA INTELIGENTE DE SUMA/RESTA
+  // FUNCIÓN INTELIGENTE DE SUMA/RESTA
   // =================================================================
   const quickAdjust = async (item: InventoryItem, isAdding: boolean) => {
     if (!studioId) return;
 
-    // 1. Detectamos cuánto vale "1 movimiento" para este item
+    // 1. Detectamos cuánto vale "1 movimiento"
     const factor = item.unit_type === 'unit' ? 1 : (item.units_per_box || 1);
     
-    // 2. Calculamos delta (Positivo o Negativo)
+    // 2. Calculamos delta
     const delta = isAdding ? factor : -factor;
     
     // 3. Calculamos nuevo stock
@@ -243,6 +243,12 @@ export const InventoryPage = () => {
       </div>
     );
   };
+
+  // ------------------------------------------------------------------
+  // LÓGICA DE BLOQUEO DE EDICIÓN (SOLUCIÓN "EDGE CASE")
+  // ------------------------------------------------------------------
+  // Si estamos editando y el producto tiene stock > 0, bloqueamos la config de caja.
+  const isEditingWithStock = editingId !== null && items.find(i => i.id === editingId)?.total_stock! > 0;
 
   return (
     <div className="w-full max-w-[1400px] mx-auto min-h-screen animate-in fade-in duration-700 pb-24 px-4 md:px-10 text-left text-[var(--brand-primary)]">
@@ -363,7 +369,6 @@ export const InventoryPage = () => {
                     </div>
                   </div>
 
-                  {/* BOTONES ACTUALIZADOS: SUMAN/RESTAN POR TIPO DE CAJA */}
                   <div className="flex gap-2">
                     <button 
                       onClick={() => quickAdjust(item, false)}
@@ -397,8 +402,8 @@ export const InventoryPage = () => {
               
               <form onSubmit={handleSubmit} className="space-y-4 text-left">
                 
-                {/* Selector de Tipo */}
-                <div className="p-1 bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl flex gap-1">
+                {/* Selector de Tipo (BLOQUEADO SI HAY STOCK) */}
+                <div className={`p-1 bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl flex gap-1 ${isEditingWithStock ? 'opacity-50 pointer-events-none' : ''}`}>
                   {(['unit', 'box', 'mix'] as UnitType[]).map((type) => (
                     <button
                       key={type}
@@ -426,17 +431,27 @@ export const InventoryPage = () => {
                   />
                 </div>
 
-                {/* Unidades por Caja */}
+                {/* Unidades por Caja (PROTEGIDO) */}
                 {(unitType === 'box' || unitType === 'mix') && (
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-[var(--brand-accent)] uppercase ml-2 tracking-widest">Unidades por {unitType === 'box' ? 'Caja' : 'Kit'}</label>
+                  <div className="space-y-2 relative">
+                    <label className="text-[9px] font-black text-[var(--brand-accent)] uppercase ml-2 tracking-widest flex items-center justify-between">
+                      Unidades por {unitType === 'box' ? 'Caja' : 'Kit'}
+                      {/* AVISO VISUAL DE BLOQUEO */}
+                      {isEditingWithStock && <span className="text-red-500 text-[8px] bg-red-900/20 px-2 rounded">BLOQUEADO</span>}
+                    </label>
                     <input 
                       type="number"
-                      className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] p-5 rounded-2xl text-sm font-mono text-[var(--brand-primary)] outline-none focus:border-[var(--brand-accent)]"
+                      disabled={isEditingWithStock} // <--- BLOQUEO REAL
+                      className={`w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] p-5 rounded-2xl text-sm font-mono text-[var(--brand-primary)] outline-none focus:border-[var(--brand-accent)] ${isEditingWithStock ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="Ej: 20"
                       value={unitsPerBox || ''}
                       onChange={(e) => setUnitsPerBox(e.target.value)}
                     />
+                    {isEditingWithStock && (
+                      <p className="text-[8px] text-[var(--brand-muted)] mt-1 ml-2">
+                        * Para cambiar el tamaño de caja, primero debes dejar el stock en 0.
+                      </p>
+                    )}
                   </div>
                 )}
                 

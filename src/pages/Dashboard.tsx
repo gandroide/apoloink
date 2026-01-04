@@ -31,7 +31,7 @@ export const Dashboard = () => {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
 
-  // 1. SOLUCIÓN GRÁFICOS: Obtenemos los colores reales (HEX) para pasarlos a Recharts
+  // 1. SOLUCIÓN GRÁFICOS: Obtenemos los colores reales (HEX)
   const themeColors = useMemo(() => {
     return THEMES.find(t => t.id === currentTheme)?.colors || THEMES[0].colors;
   }, [currentTheme]);
@@ -58,7 +58,6 @@ export const Dashboard = () => {
 
   const loadData = async () => {
     setLoadingExpenses(true);
-    // Cargamos trabajos (El hook useAccounting ya maneja la relación 'profiles')
     await fetchWorks(selectedMonth, selectedYear);
     
     // Cargamos gastos
@@ -72,11 +71,10 @@ export const Dashboard = () => {
 
   useEffect(() => { loadData(); }, [selectedMonth, selectedYear]);
 
-  // 2. DATA GRÁFICOS: Aseguramos que artist_profile exista
+  // 2. DATA GRÁFICOS
   const artistChartData = useMemo(() => {
     const map: Record<string, number> = {};
     works.forEach(w => {
-      // Si artist_profile es null (por error de carga), usamos 'Desconocido'
       const name = w.artist_profile?.name || 'Desconocido';
       map[name] = (map[name] || 0) + (w.total_price || 0);
     });
@@ -97,10 +95,21 @@ export const Dashboard = () => {
   }, [works, selectedMonth, selectedYear]);
 
   const totalGrossSales = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
+  
+  // 3. CÁLCULO DE UTILIDAD (Con Lógica Snapshot para evitar errores históricos)
   const studioGross = works.reduce((sum, w) => {
-    const artistCommission = w.artist_profile?.commission_percentage || 50;
-    return sum + (w.total_price * ((100 - artistCommission) / 100));
+    // PRIORIDAD: 
+    // 1. Usar 'snapshot_commission' (histórico congelado en DB)
+    // 2. Si no existe, usar el perfil actual (w.artist_profile.commission_percentage)
+    // 3. Si todo falla, asumir 50%
+    const historicRate = w.snapshot_commission ?? w.artist_profile?.commission_percentage ?? 50;
+    
+    // Calculamos cuánto se queda el estudio (100% - % del Artista)
+    const studioShare = 100 - historicRate;
+    
+    return sum + (w.total_price * (studioShare / 100));
   }, 0);
+
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const netProfit = studioGross - totalExpenses;
 
@@ -185,7 +194,6 @@ export const Dashboard = () => {
                 </div>
             </div>
 
-            {/* GRÁFICOS CORREGIDOS CON COLORES HEXADECIMALES */}
             <div className={`${activeTab === 'charts' ? 'block' : 'hidden md:block'} grid grid-cols-1 md:grid-cols-2 gap-6`}>
                 <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2.5rem]">
                   <h3 className="text-[10px] font-black text-[var(--brand-muted)] uppercase tracking-widest mb-6 italic">Artistas</h3>
@@ -202,7 +210,6 @@ export const Dashboard = () => {
                           }}
                           itemStyle={{ color: themeColors.primary }}
                         />
-                        {/* AQUÍ ESTÁ LA CORRECCIÓN: Usamos themeColors.accent */}
                         <Bar dataKey="total" fill={themeColors.accent} radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -223,7 +230,6 @@ export const Dashboard = () => {
                             color: themeColors.primary
                           }}
                         />
-                        {/* AQUÍ ESTÁ LA CORRECCIÓN: Usamos themeColors.primary */}
                         <Line type="monotone" dataKey="monto" stroke={themeColors.primary} strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -233,7 +239,6 @@ export const Dashboard = () => {
 
             <div className={`${activeTab === 'team' ? 'block' : 'hidden md:block'}`}>
               <section className="bg-[var(--brand-surface)]/20 border border-[var(--brand-border)] p-4 md:p-8 rounded-[3rem]">
-                {/* Aseguramos que Stats reciba 'works' correctamente */}
                 <Stats works={works} />
               </section>
             </div>

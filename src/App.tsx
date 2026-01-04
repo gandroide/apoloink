@@ -19,21 +19,26 @@ import { Login } from './pages/Login';
 import { SignUp } from './pages/SignUp';
 import { ScannerPage } from './pages/ScannerPage';
 import { DocumentationPage } from './pages/DocumentationPage';
-import { OnboardingPage } from './pages/OnboardingPages'; // Confirma nombre de archivo
+import { OnboardingPage } from './pages/OnboardingPages';
+import { AdminDashboard } from './pages/AdminDashboard'; 
+
+// --- COMPONENTE DE CARGA (Reutilizable) ---
+const LoadingScreen = ({ text }: { text: string }) => (
+  <div className="h-screen w-full bg-black flex items-center justify-center">
+    <div className="text-zinc-500 font-bold text-xs uppercase tracking-[0.3em] animate-pulse">
+      {text}
+    </div>
+  </div>
+);
 
 // --- GUARDIA DE ESTUDIO (STUDIO GUARD) ---
-// Este componente evita el "Flash" del Dashboard.
-// Verifica en la BD si el usuario pertenece a un estudio antes de mostrar nada.
 function StudioGuard({ children }: { readonly children: JSX.Element }) {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [hasStudio, setHasStudio] = useState(false);
 
   useEffect(() => {
-    // 1. Si AuthContext aún carga, esperamos.
     if (authLoading) return;
-
-    // 2. Si no hay usuario, la ruta protegida se encargará, pero por seguridad paramos.
     if (!user) {
       setLoading(false);
       return;
@@ -41,20 +46,19 @@ function StudioGuard({ children }: { readonly children: JSX.Element }) {
 
     const checkMembership = async () => {
       try {
-        // Consultamos si existe ALGUNA membresía para este usuario
         const { data, error } = await supabase
           .from('studio_members')
-          .select('id') // Solo necesitamos saber si existe una ID
+          .select('id')
           .eq('user_id', user.id)
-          .limit(1);
+          .maybeSingle(); 
 
-        // Si hay error o el array está vacío, NO tiene estudio.
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           setHasStudio(true);
         } else {
           setHasStudio(false);
         }
       } catch (err) {
+        // En producción podemos silenciar esto o enviarlo a un servicio de monitoreo
         console.error("Error verificando estudio:", err);
         setHasStudio(false);
       } finally {
@@ -65,30 +69,22 @@ function StudioGuard({ children }: { readonly children: JSX.Element }) {
     checkMembership();
   }, [user, authLoading]);
 
-  // A. MIENTRAS VERIFICAMOS: Pantalla Negra (Bloquea el Dashboard)
-  if (loading || authLoading) {
-    return (
-      <div className="h-screen w-full bg-black flex items-center justify-center">
-        <div className="text-zinc-500 font-bold text-xs uppercase tracking-[0.3em] animate-pulse">
-          Cargando Espacio...
-        </div>
-      </div>
-    );
-  }
+  if (loading || authLoading) return <LoadingScreen text="Cargando Espacio..." />;
 
-  // B. SI NO TIENE ESTUDIO: Redirigir al Onboarding
   if (!hasStudio) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // C. SI TIENE ESTUDIO: Mostrar la App (Dashboard, etc)
   return children;
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(true);
 
-  // Tema
+  // 1. Configurar Tema
   useEffect(() => {
     const savedTheme = localStorage.getItem('axis-theme') || 'dark';
     const root = document.documentElement;
@@ -100,7 +96,35 @@ function AppContent() {
     if (theme) Object.entries(theme).forEach(([k, v]) => root.style.setProperty(`--brand-${k}`, v as string));
   }, []);
 
-  // Rutas Públicas (Login/Signup)
+  // 2. Verificar ROL (Limpiado)
+  useEffect(() => {
+    if (authLoading) return; 
+    
+    if (!user) {
+      setRoleLoading(false);
+      return;
+    }
+
+    const checkRole = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_super_admin')
+        .eq('id', user.id)
+        .single();
+      
+      setIsSuperAdmin(!!data?.is_super_admin);
+      setRoleLoading(false);
+    };
+
+    checkRole();
+  }, [user, authLoading]);
+
+  // A. PANTALLA DE CARGA
+  if (authLoading || (user && roleLoading)) {
+    return <LoadingScreen text="Iniciando AXIS.ops..." />;
+  }
+
+  // B. RUTAS PÚBLICAS
   if (!user) {
     return (
       <Routes>
@@ -111,17 +135,25 @@ function AppContent() {
     );
   }
 
-  // Rutas Privadas
+  // C. RUTAS DE SUPER ADMIN
+  if (isSuperAdmin) {
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    );
+  }
+
+  // D. RUTAS DE USUARIO NORMAL
   return (
     <Routes>
-      {/* 1. ONBOARDING (Aislado, SIN Sidebar) */}
       <Route path="/onboarding" element={
         <ProtectedRoute>
           <OnboardingPage />
         </ProtectedRoute>
       } />
 
-      {/* 2. APP PRINCIPAL (Con Sidebar + StudioGuard) */}
       <Route path="/*" element={
         <AppLayout>
           <StudioGuard>
@@ -137,6 +169,8 @@ function AppContent() {
               <Route path="/edit-work/:id" element={<EditWorkPage />} />
               <Route path="/scan" element={<ScannerPage />} />
               <Route path="/guide" element={<DocumentationPage />} />
+              
+              <Route path="/admin" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </StudioGuard>

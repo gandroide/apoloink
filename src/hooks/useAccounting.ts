@@ -18,7 +18,9 @@ export interface Work {
   total_price: number;
   created_at: string;
   artist_id: string;
-  is_canvas: boolean; 
+  is_canvas: boolean;
+  // NUEVO: Aquí definimos el campo para la "foto" histórica de la comisión
+  snapshot_commission?: number; 
   // Mantenemos el nombre viejo aquí para no romper tus componentes visuales
   artist_profile?: Artist;
 }
@@ -32,9 +34,7 @@ export const useAccounting = () => {
     setLoading(true);
     try {
       // 1. Traemos los trabajos
-      // SOLUCIÓN AL ERROR PGRST201:
-      // Usamos "!artist_works_artist_id_fkey" para ser EXPLICITOS sobre qué relación usar.
-      // Esto le dice a Supabase: "Usa el puente original, ignora cualquier duplicado".
+      // El "*" traerá automáticamente la columna 'snapshot_commission' si existe en la BD
       let query = supabase
         .from('artist_works')
         .select(`
@@ -59,7 +59,7 @@ export const useAccounting = () => {
       
       if (worksError) throw worksError;
 
-      // 2. Traemos la lista completa de perfiles (CAMBIO: tabla 'profiles')
+      // 2. Traemos la lista completa de perfiles
       const { data: artistsData, error: artistsError } = await supabase
         .from('profiles') 
         .select('*')
@@ -85,7 +85,7 @@ export const useAccounting = () => {
     is_canvas: boolean; 
     date?: string;
   }) => {
-    // Aquí no cambia nada porque 'artist_works' sigue existiendo igual
+    // Al insertar, el Trigger de la base de datos se encargará de rellenar 'snapshot_commission'
     const { error } = await supabase.from('artist_works').insert([workData]);
     if (error) {
       console.error('Error al registrar trabajo:', error.message);
