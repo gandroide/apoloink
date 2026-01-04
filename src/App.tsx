@@ -21,8 +21,9 @@ import { ScannerPage } from './pages/ScannerPage';
 import { DocumentationPage } from './pages/DocumentationPage';
 import { OnboardingPage } from './pages/OnboardingPages';
 import { AdminDashboard } from './pages/AdminDashboard'; 
+import { AuthSuccess } from './pages/AuthSuccess'; // <--- Importación añadida
 
-// --- COMPONENTE DE CARGA (Reutilizable) ---
+// --- COMPONENTE DE CARGA ---
 const LoadingScreen = ({ text }: { text: string }) => (
   <div className="h-screen w-full bg-black flex items-center justify-center">
     <div className="text-zinc-500 font-bold text-xs uppercase tracking-[0.3em] animate-pulse">
@@ -31,7 +32,7 @@ const LoadingScreen = ({ text }: { text: string }) => (
   </div>
 );
 
-// --- GUARDIA DE ESTUDIO (STUDIO GUARD) ---
+// --- GUARDIA DE ESTUDIO ---
 function StudioGuard({ children }: { readonly children: JSX.Element }) {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,6 @@ function StudioGuard({ children }: { readonly children: JSX.Element }) {
           setHasStudio(false);
         }
       } catch (err) {
-        // En producción podemos silenciar esto o enviarlo a un servicio de monitoreo
         console.error("Error verificando estudio:", err);
         setHasStudio(false);
       } finally {
@@ -80,7 +80,6 @@ function StudioGuard({ children }: { readonly children: JSX.Element }) {
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
-  
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [roleLoading, setRoleLoading] = useState(true);
 
@@ -96,10 +95,9 @@ function AppContent() {
     if (theme) Object.entries(theme).forEach(([k, v]) => root.style.setProperty(`--brand-${k}`, v as string));
   }, []);
 
-  // 2. Verificar ROL (Limpiado)
+  // 2. Verificar ROL
   useEffect(() => {
     if (authLoading) return; 
-    
     if (!user) {
       setRoleLoading(false);
       return;
@@ -119,7 +117,6 @@ function AppContent() {
     checkRole();
   }, [user, authLoading]);
 
-  // A. PANTALLA DE CARGA
   if (authLoading || (user && roleLoading)) {
     return <LoadingScreen text="Iniciando AXIS.ops..." />;
   }
@@ -140,6 +137,8 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
+        {/* Permitimos acceso a AuthSuccess incluso para admins si vienen del correo */}
+        <Route path="/auth-success" element={<AuthSuccess />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     );
@@ -153,6 +152,9 @@ function AppContent() {
           <OnboardingPage />
         </ProtectedRoute>
       } />
+
+      {/* RUTA DE ÉXITO DE AUTENTICACIÓN (Fuera del Layout y del Guard para que cargue limpio) */}
+      <Route path="/auth-success" element={<AuthSuccess />} />
 
       <Route path="/*" element={
         <AppLayout>
