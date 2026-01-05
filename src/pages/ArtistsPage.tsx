@@ -1,103 +1,146 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useAccounting } from '../hooks/useAccounting';
+
+// Definimos la interfaz localmente para seguridad
+interface Artist {
+  id: string;
+  name: string;
+  commission_percentage: number;
+  is_active: boolean;
+  type: string;
+  studio_id: string;
+}
 
 export const ArtistsPage = () => {
-  const { artists, fetchWorks } = useAccounting();
   const navigate = useNavigate();
   
+  // Estados locales (Reemplazamos useAccounting para tener control estricto del filtro)
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Estados del formulario
   const [newName, setNewName] = useState('');
   const [newCommission, setNewCommission] = useState('50');
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => { 
-    fetchWorks(); 
-  }, [fetchWorks]);
+  // --- 1. CARGA DE EQUIPO SEGURA ---
+  const fetchTeam = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  // Solo mostramos los que están activos
+      // a) Buscar mi ID de estudio
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('studio_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile?.studio_id) {
+        // b) Buscar SOLO ARTISTAS (type = 'residente') de mi estudio
+        // Esto evita que el Dueño (owner) salga en la lista
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('studio_id', profile.studio_id)
+          .eq('type', 'residente') // <--- FILTRO CLAVE
+          .order('name', { ascending: true });
+        
+        setArtists(data || []);
+      }
+    } catch (error) {
+      console.error("Error cargando equipo:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    fetchTeam(); 
+  }, []);
+
+  // Solo mostramos los que están activos para la vista principal
   const activeArtists = artists.filter(a => a.is_active !== false);
 
   // --- LÓGICA DE SEGURIDAD PARA PORCENTAJES ---
   const handlePercentageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-
-    // 1. Si borran todo, dejar vacío
     if (value === '') {
       setNewCommission('');
       return;
     }
-
-    // 2. Convertir y validar
     let numValue = parseFloat(value);
-
-    // 3. REGLA DE ORO: Bloquear números locos
     if (numValue > 100) numValue = 100;
     if (numValue < 0) numValue = 0;
-
     setNewCommission(numValue.toString());
   };
-  // ---------------------------------------------
 
+  // --- 2. CREACIÓN DE ARTISTA CON STUDIO_ID ---
   const handleAddArtist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || isSaving) return;
 
     setIsSaving(true);
     
-    // Convertimos a número final
-    const finalCommission = parseFloat(newCommission || '0');
+    try {
+        const finalCommission = parseFloat(newCommission || '0');
+        if (finalCommission > 100) throw new Error("La comisión no puede ser mayor al 100%");
 
-    // Doble chequeo de seguridad
-    if (finalCommission > 100) {
-      alert("Error: La comisión no puede ser mayor al 100%");
-      setIsSaving(false);
-      return;
-    }
+        // a) Obtener el studio_id del usuario actual antes de guardar
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('studio_id')
+            .eq('id', user?.id)
+            .single();
 
-    const { error } = await supabase.from('profiles').insert([
-      { 
-        name: newName.toUpperCase(), // Guardar siempre en mayúsculas queda mejor
-        type: 'residente', 
-        commission_percentage: finalCommission,
-        is_active: true 
-      }
-    ]);
+        if (!profile?.studio_id) throw new Error("No tienes un estudio asignado para registrar artistas.");
 
-    if (!error) {
-      setNewName('');
-      setNewCommission('50');
-      fetchWorks(); 
-    } else {
+        // b) Insertar con el studio_id vinculado
+        const { error } = await supabase.from('profiles').insert([
+        { 
+            name: newName.toUpperCase(),
+            type: 'residente', // Siempre 'residente'
+            commission_percentage: finalCommission,
+            is_active: true,
+            studio_id: profile.studio_id // <--- VINCULACIÓN CRÍTICA
+        }
+        ]);
+
+        if (error) throw error;
+
+        // Limpiar y recargar
+        setNewName('');
+        setNewCommission('50');
+        fetchTeam(); 
+
+    } catch (error: any) {
       console.error("Error al crear:", error.message);
       alert(error.message);
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
+  // --- 3. ARCHIVAR ARTISTA ---
   const archiveArtist = async (id: string, name: string) => {
-    if (!confirm(`¿Quieres archivar a ${name}?`)) return;
+    if (!confirm(`¿Quieres archivar a ${name}? Dejará de aparecer en nuevos registros.`)) return;
   
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ is_active: false })
-        .eq('id', id)
-        .select();
+        .eq('id', id);
   
-      if (error) {
-        console.error("Error técnico al archivar:", error.message);
-        alert("Error de base de datos: " + error.message);
-        return;
-      }
-  
-      if (data && data.length > 0) {
-        await fetchWorks(); 
-      } else {
-        console.warn("La DB no guardó el cambio. Revisa los permisos RLS.");
-      }
-    } catch (err) {
-      console.error("Error inesperado:", err);
+      if (error) throw error;
+      
+      await fetchTeam(); 
+
+    } catch (err: any) {
+      console.error("Error al archivar:", err);
+      alert("Error: " + err.message);
     }
   };
 
@@ -127,33 +170,40 @@ export const ArtistsPage = () => {
         
         {/* LISTADO DE ACTIVOS */}
         <section className="lg:col-span-8 space-y-6 order-2 lg:order-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            {activeArtists.map((artist) => (
-              <div key={artist.id} className="group bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-[2.5rem] flex justify-between items-center hover:bg-zinc-900/60 transition-all">
-                <Link to={`/team/${artist.id}`} className="flex-1 flex items-center gap-5">
-                  <div className="h-14 w-14 bg-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:bg-white group-hover:text-black transition-all uppercase italic text-xl">
-                    {artist.name.substring(0, 2)}
-                  </div>
-                  <div>
-                    <h4 className="font-black text-lg uppercase text-zinc-100 tracking-tighter">{artist.name}</h4>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{artist.commission_percentage}% Comisión</p>
-                  </div>
-                </Link>
-                
-                <div className="relative group/tooltip">
-                  <button 
-                    onClick={() => archiveArtist(artist.id, artist.name)}
-                    className="text-zinc-800 hover:text-orange-500 transition-colors p-4"
-                  >
-                    <span className="text-xl">📥</span>
-                  </button>
+          {loading ? (
+             <div className="py-20 text-center text-zinc-600 font-bold uppercase tracking-widest text-xs animate-pulse">Cargando Equipo...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                {activeArtists.map((artist) => (
+                <div key={artist.id} className="group bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-[2.5rem] flex justify-between items-center hover:bg-zinc-900/60 transition-all">
+                    <Link to={`/team/${artist.id}`} className="flex-1 flex items-center gap-5">
+                    <div className="h-14 w-14 bg-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:bg-white group-hover:text-black transition-all uppercase italic text-xl">
+                        {artist.name.substring(0, 2)}
+                    </div>
+                    <div>
+                        <h4 className="font-black text-lg uppercase text-zinc-100 tracking-tighter">{artist.name}</h4>
+                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{artist.commission_percentage}% Comisión</p>
+                    </div>
+                    </Link>
+                    
+                    <div className="relative group/tooltip">
+                    <button 
+                        onClick={() => archiveArtist(artist.id, artist.name)}
+                        className="text-zinc-800 hover:text-orange-500 transition-colors p-4"
+                        title="Archivar Artista"
+                    >
+                        <span className="text-xl">📥</span>
+                    </button>
+                    </div>
                 </div>
-              </div>
-            ))}
-            {activeArtists.length === 0 && (
-              <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest py-10">No hay artistas activos registrados.</p>
-            )}
-          </div>
+                ))}
+                {activeArtists.length === 0 && (
+                <div className="col-span-full py-10 border border-dashed border-zinc-800 rounded-3xl text-center">
+                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">No hay artistas activos registrados.</p>
+                </div>
+                )}
+            </div>
+          )}
         </section>
 
         {/* REGISTRO */}
@@ -191,7 +241,7 @@ export const ArtistsPage = () => {
                     max="100"
                     className="w-full bg-zinc-950 border border-zinc-800 p-4 rounded-2xl text-sm font-mono text-white outline-none focus:border-emerald-500 transition-colors"
                     value={newCommission}
-                    onChange={handlePercentageChange} // Usamos la nueva función segura
+                    onChange={handlePercentageChange} 
                   />
                   
                   {/* BARRA VISUAL DE REPARTO */}
