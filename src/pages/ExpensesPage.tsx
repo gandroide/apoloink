@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatterCOP } from '../lib/formatterCOP';
 
@@ -10,17 +10,34 @@ interface Expense {
   date: string;
 }
 
+const CATEGORIES = ['Servicios', 'Renta', 'Marketing', 'Mantenimiento', 'Insumos', 'Otros'];
+
 export const ExpensesPage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para el formulario
-  const [editingId, setEditingId] = useState<string | null>(null); // ID del gasto en edición
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Servicios');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Estados para el Custom Dropdown
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -41,16 +58,12 @@ export const ExpensesPage = () => {
 
   useEffect(() => { fetchExpenses(); }, []);
 
-  // Función para cargar los datos en el formulario
   const startEdit = (expense: Expense) => {
     setEditingId(expense.id);
     setDescription(expense.description);
     setAmount(expense.amount.toString());
     setCategory(expense.category);
-    // Ajustamos la fecha para que el input type="date" la lea bien (YYYY-MM-DD)
     setExpenseDate(expense.date.split('T')[0]);
-    
-    // Scroll suave hacia arriba para móviles
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -72,20 +85,18 @@ export const ExpensesPage = () => {
         description,
         amount: parseFloat(amount),
         category,
-        date: `${expenseDate}T12:00:00Z` // Hora fija para evitar desfases
+        date: `${expenseDate}T12:00:00Z`
       };
 
       let error;
 
       if (editingId) {
-        // MODO EDICIÓN: Actualizamos el registro existente
         const { error: updateError } = await supabase
           .from('expenses')
           .update(expenseData)
           .eq('id', editingId);
         error = updateError;
       } else {
-        // MODO CREACIÓN: Insertamos uno nuevo
         const { error: insertError } = await supabase
           .from('expenses')
           .insert([expenseData]);
@@ -94,8 +105,7 @@ export const ExpensesPage = () => {
 
       if (error) throw error;
 
-      // Limpiar y recargar
-      cancelEdit(); // Resetea formulario y estado de edición
+      cancelEdit();
       await fetchExpenses();
     } catch (err) {
       console.error("Error al guardar gasto:", err);
@@ -110,7 +120,7 @@ export const ExpensesPage = () => {
   return (
     <div className="w-full max-w-[1400px] mx-auto min-h-screen animate-in fade-in duration-700 pb-24 px-4 md:px-10 text-left">
       
-      {/* HEADER CON TOTALIZADOR */}
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10">
         <div>
           <h2 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter text-white leading-[0.8]">
@@ -136,7 +146,7 @@ export const ExpensesPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
-        {/* HISTORIAL */}
+        {/* LISTA DE GASTOS */}
         <section className="lg:col-span-8 space-y-6 order-2 lg:order-1">
           <div className="flex items-center gap-4 mb-4">
             <h3 className="text-[11px] font-black text-white uppercase tracking-widest italic">Flujo de Caja Negativo</h3>
@@ -160,7 +170,6 @@ export const ExpensesPage = () => {
                     className={`bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center group hover:bg-zinc-900/60 transition-all duration-300 gap-4 ${editingId === exp.id ? 'border-red-500/50 bg-red-900/10' : ''}`}
                   >
                     <div className="flex items-center gap-5 w-full md:w-auto">
-                      {/* BOTÓN DE EDITAR (Visible al hacer hover en Desktop, siempre visible en móvil si se desea ajustar) */}
                       <button 
                         onClick={() => startEdit(exp)}
                         className="h-12 w-12 bg-zinc-950 border border-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 hover:text-white hover:bg-zinc-800 hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-lg"
@@ -255,20 +264,42 @@ export const ExpensesPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                {/* --- CUSTOM DROPDOWN (Reemplazo del Select nativo) --- */}
+                <div className="space-y-2 relative" ref={dropdownRef}>
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Categoría</label>
-                  <select 
-                    className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-[10px] font-black uppercase text-zinc-400 outline-none cursor-pointer appearance-none"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                  
+                  {/* Botón Trigger */}
+                  <div 
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className={`w-full bg-black border ${isDropdownOpen ? 'border-white' : 'border-zinc-800'} p-5 rounded-2xl text-[10px] font-black uppercase text-white outline-none cursor-pointer flex justify-between items-center transition-all hover:border-zinc-600`}
                   >
-                    <option value="Servicios">Servicios</option>
-                    <option value="Renta">Renta</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                    <option value="Insumos">Insumos</option>
-                    <option value="Otros">Otros</option>
-                  </select>
+                    <span>{category}</span>
+                    {/* Flecha animada */}
+                    <svg 
+                        className={`w-3 h-3 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  {/* Lista Desplegable */}
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                      {CATEGORIES.map((cat) => (
+                        <div 
+                          key={cat}
+                          onClick={() => {
+                            setCategory(cat);
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`p-4 hover:bg-zinc-900 cursor-pointer transition-colors text-[10px] uppercase font-black tracking-wider border-b border-zinc-900 last:border-0 ${category === cat ? 'text-white bg-zinc-900' : 'text-zinc-400'}`}
+                        >
+                          {cat}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <button 

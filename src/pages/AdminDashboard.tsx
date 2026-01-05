@@ -20,12 +20,10 @@ const formatDate = (dateString: string | null) => {
 
 // --- ICONOS ---
 const Icons = {
-  Home: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
-  Users: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
   Building: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+  Users: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
   Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
   Exit: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
-  Filter: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>,
   Close: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
   ChevronLeft: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
   ChevronRight: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
@@ -33,7 +31,7 @@ const Icons = {
   Money: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   Crown: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
   UserPlus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>,
-  CheckBadge: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>,
+  CheckBadge: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>,
   Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
   Alert: () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
 };
@@ -42,13 +40,19 @@ export const AdminDashboard = () => {
   const [studios, setStudios] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [metrics, setMetrics] = useState({ mrr: 0, totalUsers: 0 });
-  const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'studios' | 'users'>('studios');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudio, setSelectedStudio] = useState<any | null>(null);
   const [showNewAdminModal, setShowNewAdminModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false); // NUEVO: Control del modal de borrar
+  
+  // MODAL DE ELIMINAR
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // NUEVO: MODAL DE ASCENDER
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [userToPromote, setUserToPromote] = useState<any | null>(null);
+
   const [isUpdating, setIsUpdating] = useState(false);
   const navigate = useNavigate();
 
@@ -77,9 +81,14 @@ export const AdminDashboard = () => {
   }, [navigate]);
 
   const loadGlobalData = async () => {
-    setLoading(true);
     const { data: studiosData } = await supabase.from('studios').select('*').order('created_at', { ascending: false });
-    const { data: profilesData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    
+    // FILTRO CORRECTO: Sin artistas
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('*')
+      .neq('type', 'residente') 
+      .order('created_at', { ascending: false });
     
     const mrr = studiosData?.reduce((acc, studio) => {
         if (studio.is_active !== false) { 
@@ -91,15 +100,14 @@ export const AdminDashboard = () => {
     setStudios(studiosData || []);
     setUsers(profilesData || []);
     setMetrics({ mrr: mrr, totalUsers: profilesData?.length || 0 });
-    setLoading(false);
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error("Error al cerrar sesión:", error);
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
+  // --- LOGICA ESTUDIOS ---
   const handleToggleStudioStatus = async () => {
     if (!selectedStudio) return;
     setIsUpdating(true);
@@ -115,24 +123,15 @@ export const AdminDashboard = () => {
     } else {
       const updatedStudios = studios.map(s => s.id === selectedStudio.id ? { ...s, is_active: newStatus } : s);
       setStudios(updatedStudios);
-      
-      const newMRR = updatedStudios.reduce((acc, studio) => {
-          if (studio.is_active !== false) return acc + (studio.subscription_price || 0);
-          return acc;
-      }, 0);
-      setMetrics(prev => ({ ...prev, mrr: newMRR }));
-      
       setSelectedStudio(null); 
     }
     setIsUpdating(false);
   };
 
-  // --- SOLICITAR ELIMINACIÓN (Abre el modal) ---
   const requestDeleteStudio = () => {
     setShowDeleteModal(true);
   };
 
-  // --- EJECUTAR ELIMINACIÓN (Real) ---
   const executeDeleteStudio = async () => {
     if (!selectedStudio) return;
     setIsUpdating(true);
@@ -146,39 +145,41 @@ export const AdminDashboard = () => {
     } else {
         const updatedStudios = studios.filter(s => s.id !== selectedStudio.id);
         setStudios(updatedStudios);
-        const newMRR = updatedStudios.reduce((acc, studio) => {
-            if (studio.is_active !== false) return acc + (studio.subscription_price || 0);
-            return acc;
-        }, 0);
-        setMetrics(prev => ({ ...prev, mrr: newMRR }));
-        
-        // Cerrar todos los modales
         setShowDeleteModal(false);
         setSelectedStudio(null);
     }
     setIsUpdating(false);
   };
 
-  const handlePromoteUser = async (userId: string) => {
-    if (!window.confirm("¿Confirmas que este usuario será SUPER ADMIN? Tendrá control total sobre AXIS.")) return;
+  // --- LOGICA ASCENDER USUARIO ---
+  const requestPromoteUser = (user: any) => {
+    setUserToPromote(user);
+    setShowPromoteModal(true);
+  };
+
+  const executePromoteUser = async () => {
+    if (!userToPromote) return;
     
     setIsUpdating(true);
     const { error } = await supabase
         .from('profiles')
-        .update({ is_super_admin: true, studio_id: null }).eq('id', userId);
+        .update({ is_super_admin: true, studio_id: null })
+        .eq('id', userToPromote.id);
 
     if (error) {
         alert("Error: " + error.message);
     } else {
-        alert("¡Usuario ascendido correctamente!");
-        setUsers(users.map(u => u.id === userId ? { ...u, is_super_admin: true, studio_id: null } : u));
+        // Actualizar lista localmente
+        setUsers(users.map(u => u.id === userToPromote.id ? { ...u, is_super_admin: true, studio_id: null } : u));
+        setShowPromoteModal(false);
+        setUserToPromote(null);
     }
     setIsUpdating(false);
   };
 
+  // --- FILTROS ---
   const filteredStudios = studios.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.contact_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.id.includes(searchTerm)
   );
 
@@ -226,7 +227,8 @@ export const AdminDashboard = () => {
               )}
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative">
+             {/* ... Search ... */}
+             <div className="relative">
                 <input type="text" placeholder="Buscar..." className="bg-zinc-900 border border-zinc-800 text-xs text-white pl-9 pr-4 py-2 rounded-lg outline-none focus:border-zinc-600 w-64 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 <div className="absolute left-3 top-2.5 text-zinc-500"><Icons.Search /></div>
             </div>
@@ -237,7 +239,8 @@ export const AdminDashboard = () => {
         <div className="flex-1 overflow-auto p-8 flex flex-col">
           {/* METRICS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 shrink-0">
-            <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-lg relative overflow-hidden group">
+             {/* ... Metrics ... */}
+             <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-lg relative overflow-hidden group">
                 <div className="absolute right-4 top-4 text-zinc-800 group-hover:text-emerald-900/40 transition-colors"><Icons.Money /></div>
                 <p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">MRR (Ingreso Mensual)</p>
                 <p className="text-2xl font-mono font-bold text-emerald-400">{formatterCOP.format(metrics.mrr)}</p>
@@ -247,7 +250,7 @@ export const AdminDashboard = () => {
             <div className="bg-zinc-900/30 border border-zinc-800 p-6 rounded-lg"><p className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Usuarios Totales</p><p className="text-2xl font-mono font-bold text-white">{users.length}</p></div>
           </div>
 
-          <div className="bg-zinc-900/20 border border-zinc-800 rounded-lg flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-zinc-900/20 border border-zinc-800 rounded-lg flex flex-col flex-1 min-h-0">
             <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-zinc-900/40 shrink-0">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">{currentView === 'studios' ? 'Listado de Estudios' : 'Listado de Usuarios'}</h3>
             </div>
@@ -255,6 +258,7 @@ export const AdminDashboard = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10">
                         <tr className="border-b border-zinc-800 bg-zinc-900">
+                           {/* HEADERS */}
                            {currentView === 'studios' ? (
                               <>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest w-12">#</th>
@@ -303,7 +307,17 @@ export const AdminDashboard = () => {
                                         <td className="py-3 px-4">{user.is_super_admin ? (<span className="text-purple-400 font-black uppercase text-[9px]">👑 Super Admin</span>) : (<span className="text-zinc-500 font-mono uppercase text-[9px]">{user.type || 'Usuario'}</span>)}</td>
                                         <td className="py-3 px-4 font-mono text-zinc-600 select-all max-w-[150px] truncate" title={user.id}>{user.id}</td>
                                         <td className="py-3 px-4 text-right">
-                                            {!user.is_super_admin ? (<button onClick={() => handlePromoteUser(user.id)} disabled={isUpdating} className="text-yellow-600 hover:text-yellow-400 font-bold uppercase text-[9px] border border-yellow-900/30 px-3 py-1.5 rounded hover:bg-yellow-900/20 transition-all flex items-center gap-1 ml-auto"><Icons.Crown /> Ascender</button>) : (<div className="flex items-center justify-end gap-2"><span className="text-zinc-500 text-[9px] font-black uppercase flex items-center gap-1 border border-zinc-800 px-2 py-1 rounded bg-zinc-900"><Icons.CheckBadge /> Verificado</span></div>)}
+                                            {!user.is_super_admin ? (
+                                                <button 
+                                                    onClick={() => requestPromoteUser(user)} // <-- AQUI USAMOS EL NUEVO TRIGGER
+                                                    disabled={isUpdating} 
+                                                    className="text-yellow-600 hover:text-yellow-400 font-bold uppercase text-[9px] border border-yellow-900/30 px-3 py-1.5 rounded hover:bg-yellow-900/20 transition-all flex items-center gap-1 ml-auto"
+                                                >
+                                                    <Icons.Crown /> Ascender
+                                                </button>
+                                            ) : (
+                                                <div className="flex items-center justify-end gap-2"><span className="text-zinc-500 text-[9px] font-black uppercase flex items-center gap-1 border border-zinc-800 px-2 py-1 rounded bg-zinc-900"><Icons.CheckBadge /> Verificado</span></div>
+                                            )}
                                         </td>
                                     </tr>
                                 );
@@ -312,6 +326,7 @@ export const AdminDashboard = () => {
                     </tbody>
                 </table>
             </div>
+            {/* PAGINACIÓN */}
             <div className="p-3 border-t border-zinc-800 bg-zinc-900/40 flex justify-between items-center shrink-0">
                 <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wide">Mostrando {currentItems.length} registros</span>
                 <div className="flex items-center gap-2">
@@ -324,10 +339,11 @@ export const AdminDashboard = () => {
         </div>
       </main>
 
-      {/* MODAL GESTIÓN ESTUDIO */}
-      {selectedStudio && (
+      {/* MODAL GESTIÓN ESTUDIO (Mismo código de antes) */}
+      {selectedStudio && !showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+             {/* ... Contenido del modal de gestión ... */}
+             <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-lg font-bold text-white">Gestionar Estudio</h3>
@@ -347,7 +363,6 @@ export const AdminDashboard = () => {
                             </div>
                         </div>
                     )}
-
                     {/* VALOR */}
                     <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 flex justify-between items-center">
                          <div>
@@ -355,7 +370,6 @@ export const AdminDashboard = () => {
                              <p className="font-mono text-xl font-bold text-white">{formatterCOP.format(selectedStudio.subscription_price || 0)}<span className="text-xs text-zinc-500 font-normal">/mes</span></p>
                          </div>
                     </div>
-                    
                     {/* ESTADO */}
                     <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800">
                         <p className="text-[10px] uppercase font-bold text-zinc-500 mb-2">Estado de Suscripción</p>
@@ -369,8 +383,7 @@ export const AdminDashboard = () => {
                             : 'Al estar suspendido, su valor NO cuenta en el MRR.'}
                         </p>
                     </div>
-
-                    {/* BOTÓN SUSPENDER/ACTIVAR */}
+                    {/* BOTONES */}
                     <button 
                         onClick={handleToggleStudioStatus}
                         disabled={isUpdating}
@@ -382,16 +395,9 @@ export const AdminDashboard = () => {
                     >
                         {isUpdating ? 'Procesando...' : (selectedStudio.is_active !== false ? 'SUSPENDER SERVICIO' : 'REACTIVAR SERVICIO')}
                     </button>
-
-                    {/* ZONA DE PELIGRO: ELIMINAR */}
                     <div className="pt-6 mt-6 border-t border-zinc-800/50">
                         <p className="text-[10px] font-bold text-red-500 uppercase mb-2 tracking-wider">Zona de Peligro</p>
-                        <button 
-                            onClick={requestDeleteStudio} // <-- Aquí abre el nuevo modal
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold uppercase text-xs tracking-widest transition-all bg-red-950/30 text-red-500 border border-red-900/30 hover:bg-red-900 hover:text-white"
-                        >
-                            <Icons.Trash /> Eliminar Estudio
-                        </button>
+                        <button onClick={requestDeleteStudio} className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold uppercase text-xs tracking-widest transition-all bg-red-950/30 text-red-500 border border-red-900/30 hover:bg-red-900 hover:text-white"><Icons.Trash /> Eliminar Estudio</button>
                     </div>
                 </div>
             </div>
@@ -419,35 +425,53 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* --- NUEVO: MODAL DE CONFIRMACIÓN DE ELIMINACIÓN (SIN ALERTS) --- */}
+      {/* MODAL ELIMINAR CONFIRMACIÓN */}
       {showDeleteModal && selectedStudio && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-zinc-950 border-2 border-red-900 rounded-2xl w-full max-w-sm p-6 shadow-[0_0_50px_rgba(220,38,38,0.2)] animate-in zoom-in-95 duration-200 text-center">
+                <div className="mx-auto h-16 w-16 bg-red-950/50 rounded-full flex items-center justify-center mb-4 text-red-500 animate-pulse"><Icons.Alert /></div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">¿Eliminar Definitivamente?</h3>
+                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">Estás a punto de borrar el estudio <strong className="text-white">{selectedStudio.name}</strong> y todos sus datos.<br /><br /><span className="text-red-400 font-bold uppercase">Esta acción es irreversible.</span></p>
+                <div className="flex flex-col gap-3">
+                    <button onClick={executeDeleteStudio} disabled={isUpdating} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase rounded-lg tracking-widest transition-all shadow-lg shadow-red-900/20">{isUpdating ? 'Eliminando...' : 'Sí, Eliminar Todo'}</button>
+                    <button onClick={() => setShowDeleteModal(false)} disabled={isUpdating} className="w-full py-3 bg-transparent hover:bg-zinc-900 text-zinc-500 hover:text-white font-bold uppercase rounded-lg tracking-widest transition-all">Cancelar</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- NUEVO MODAL "ROYAL" DE ASCENSO --- */}
+      {showPromoteModal && userToPromote && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-zinc-950 border-2 border-yellow-600 rounded-2xl w-full max-w-sm p-6 shadow-[0_0_50px_rgba(234,179,8,0.2)] animate-in zoom-in-95 duration-200 text-center relative overflow-hidden">
                 
-                <div className="mx-auto h-16 w-16 bg-red-950/50 rounded-full flex items-center justify-center mb-4 text-red-500 animate-pulse">
-                    <Icons.Alert />
+                {/* Fondo Decorativo */}
+                <div className="absolute inset-0 bg-yellow-500/5 pointer-events-none" />
+
+                <div className="mx-auto h-16 w-16 bg-yellow-900/30 border border-yellow-700/50 rounded-full flex items-center justify-center mb-4 text-yellow-500 animate-bounce relative z-10">
+                    <div className="scale-150"><Icons.Crown /></div>
                 </div>
 
-                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">
-                    ¿Eliminar Definitivamente?
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 relative z-10">
+                    ¿Otorgar Super Poderes?
                 </h3>
                 
-                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                    Estás a punto de borrar el estudio <strong className="text-white">{selectedStudio.name}</strong> y todos sus datos asociados (miembros, trabajos, historial).
+                <p className="text-xs text-zinc-400 mb-6 leading-relaxed relative z-10">
+                    Estás a punto de ascender a <strong className="text-white">{userToPromote.name || userToPromote.email}</strong>.
                     <br /><br />
-                    <span className="text-red-400 font-bold uppercase">Esta acción es irreversible.</span>
+                    Tendrá acceso total a <strong>AXIS.hq</strong>, podrá ver ingresos, borrar estudios y gestionar todo el sistema.
                 </p>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 relative z-10">
                     <button 
-                        onClick={executeDeleteStudio}
+                        onClick={executePromoteUser}
                         disabled={isUpdating}
-                        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase rounded-lg tracking-widest transition-all shadow-lg shadow-red-900/20"
+                        className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-black font-black uppercase rounded-lg tracking-widest transition-all shadow-lg shadow-yellow-900/20 hover:scale-[1.02] active:scale-95"
                     >
-                        {isUpdating ? 'Eliminando...' : 'Sí, Eliminar Todo'}
+                        {isUpdating ? 'Procesando...' : 'Sí, Ascender Usuario'}
                     </button>
                     <button 
-                        onClick={() => setShowDeleteModal(false)}
+                        onClick={() => setShowPromoteModal(false)}
                         disabled={isUpdating}
                         className="w-full py-3 bg-transparent hover:bg-zinc-900 text-zinc-500 hover:text-white font-bold uppercase rounded-lg tracking-widest transition-all"
                     >

@@ -21,7 +21,7 @@ import { ScannerPage } from './pages/ScannerPage';
 import { DocumentationPage } from './pages/DocumentationPage';
 import { OnboardingPage } from './pages/OnboardingPages';
 import { AdminDashboard } from './pages/AdminDashboard'; 
-import { AuthSuccess } from './pages/AuthSuccess'; // <--- Importación añadida
+import { AuthSuccess } from './pages/AuthSuccess';
 
 // --- COMPONENTE DE CARGA ---
 const LoadingScreen = ({ text }: { text: string }) => (
@@ -95,28 +95,46 @@ function AppContent() {
     if (theme) Object.entries(theme).forEach(([k, v]) => root.style.setProperty(`--brand-${k}`, v as string));
   }, []);
 
-  // 2. Verificar ROL
+  // 2. Verificar ROL (CORREGIDO PARA EVITAR BUCLE INFINITO Y ERROR 406)
   useEffect(() => {
+    let isMounted = true; // Bandera para evitar actualizaciones si el componente se desmonta
+
     if (authLoading) return; 
+    
     if (!user) {
       setRoleLoading(false);
       return;
     }
 
     const checkRole = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_super_admin')
-        .eq('id', user.id)
-        .single();
-      
-      setIsSuperAdmin(!!data?.is_super_admin);
-      setRoleLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_super_admin')
+          .eq('id', user.id)
+          .maybeSingle(); // <--- CAMBIO CLAVE: maybeSingle evita el error 406 si no existe el perfil
+
+        if (isMounted) {
+          if (error) {
+            console.warn("Error verificando rol (puede ser temporal):", error.message);
+            setIsSuperAdmin(false); // Asumimos false si hay error
+          } else {
+            setIsSuperAdmin(!!data?.is_super_admin);
+          }
+          setRoleLoading(false);
+        }
+      } catch (err) {
+        console.error("Error inesperado en roles:", err);
+        if (isMounted) setRoleLoading(false);
+      }
     };
 
     checkRole();
+
+    return () => { isMounted = false; }; // Limpieza
   }, [user, authLoading]);
 
+  // A. PANTALLA DE CARGA
   if (authLoading || (user && roleLoading)) {
     return <LoadingScreen text="Iniciando AXIS.ops..." />;
   }
@@ -137,7 +155,6 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
-        {/* Permitimos acceso a AuthSuccess incluso para admins si vienen del correo */}
         <Route path="/auth-success" element={<AuthSuccess />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
@@ -153,7 +170,6 @@ function AppContent() {
         </ProtectedRoute>
       } />
 
-      {/* RUTA DE ÉXITO DE AUTENTICACIÓN (Fuera del Layout y del Guard para que cargue limpio) */}
       <Route path="/auth-success" element={<AuthSuccess />} />
 
       <Route path="/*" element={
