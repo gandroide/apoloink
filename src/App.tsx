@@ -22,6 +22,8 @@ import { DocumentationPage } from './pages/DocumentationPage';
 import { OnboardingPage } from './pages/OnboardingPages';
 import { AdminDashboard } from './pages/AdminDashboard'; 
 import { AuthSuccess } from './pages/AuthSuccess';
+import SettingsPage from './pages/SettingsPage'; 
+import LandingPage from './pages/LandingPage'; // <--- 1. NUEVA IMPORTACIÓN
 
 // --- COMPONENTE DE CARGA ---
 const LoadingScreen = ({ text }: { text: string }) => (
@@ -95,9 +97,9 @@ function AppContent() {
     if (theme) Object.entries(theme).forEach(([k, v]) => root.style.setProperty(`--brand-${k}`, v as string));
   }, []);
 
-  // 2. Verificar ROL (CORREGIDO PARA EVITAR BUCLE INFINITO Y ERROR 406)
+  // 2. Verificar ROL
   useEffect(() => {
-    let isMounted = true; // Bandera para evitar actualizaciones si el componente se desmonta
+    let isMounted = true; 
 
     if (authLoading) return; 
     
@@ -112,12 +114,12 @@ function AppContent() {
           .from('profiles')
           .select('is_super_admin')
           .eq('id', user.id)
-          .maybeSingle(); // <--- CAMBIO CLAVE: maybeSingle evita el error 406 si no existe el perfil
+          .maybeSingle(); 
 
         if (isMounted) {
           if (error) {
             console.warn("Error verificando rol (puede ser temporal):", error.message);
-            setIsSuperAdmin(false); // Asumimos false si hay error
+            setIsSuperAdmin(false); 
           } else {
             setIsSuperAdmin(!!data?.is_super_admin);
           }
@@ -131,7 +133,7 @@ function AppContent() {
 
     checkRole();
 
-    return () => { isMounted = false; }; // Limpieza
+    return () => { isMounted = false; }; 
   }, [user, authLoading]);
 
   // A. PANTALLA DE CARGA
@@ -139,13 +141,14 @@ function AppContent() {
     return <LoadingScreen text="Iniciando AXIS.ops..." />;
   }
 
-  // B. RUTAS PÚBLICAS
+  // B. RUTAS PÚBLICAS (MODIFICADO: LANDING PAGE ES LA PRINCIPAL)
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<LandingPage />} /> {/* <--- 2. ROOT es LANDING PAGE */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} /> {/* <--- Fallback a Landing */}
       </Routes>
     );
   }
@@ -187,6 +190,9 @@ function AppContent() {
               <Route path="/edit-work/:id" element={<EditWorkPage />} />
               <Route path="/scan" element={<ScannerPage />} />
               <Route path="/guide" element={<DocumentationPage />} />
+              
+              {/* --- RUTA DE CONFIGURACIÓN --- */}
+              <Route path="/settings" element={<SettingsPage />} />
               
               <Route path="/admin" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
