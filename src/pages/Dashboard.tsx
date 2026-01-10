@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, 
   LineChart, Line, CartesianGrid 
 } from 'recharts';
+import { useCurrency } from '../hooks/useCurrency';
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -21,6 +22,7 @@ const THEMES = [
 ];
 
 export const Dashboard = () => {
+  const { format } = useCurrency();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -219,7 +221,7 @@ export const Dashboard = () => {
                         {userRole === 'independent' ? 'Ingresos Totales' : 'Ventas Brutas'}
                     </p>
                     <p className="text-3xl md:text-6xl font-black font-mono text-[var(--brand-primary)] tracking-tighter italic leading-none">
-                      {formatterCOP.format(financialData.totalGrossSales)}
+                      {format(financialData.totalGrossSales)}
                     </p>
                   </div>
                   <div className="h-12 w-12 bg-[var(--brand-accent)]/10 rounded-full flex items-center justify-center text-xl">⚡</div>
@@ -229,13 +231,13 @@ export const Dashboard = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:hidden gap-4">
                     <div className={`p-8 rounded-[2.5rem] ${financialData.netProfit >= 0 ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'bg-red-500 text-white'}`}>
                         <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Utilidad Neta</p>
-                        <h3 className="text-2xl font-black mt-1 font-mono">{formatterCOP.format(financialData.netProfit)}</h3>
+                        <h3 className="text-2xl font-black mt-1 font-mono">{format(financialData.netProfit)}</h3>
                     </div>
                     {/* Solo mostramos Studio Gross si es Owner en móvil */}
                     {userRole === 'owner' && (
                       <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-8 rounded-[2.5rem]">
                           <p className="text-[var(--brand-accent)] text-[9px] font-black uppercase">Estudio Gross</p>
-                          <p className="text-2xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(financialData.effectiveIncome)}</p>
+                          <p className="text-2xl font-black font-mono text-[var(--brand-accent)]">{format(financialData.effectiveIncome)}</p>
                       </div>
                     )}
                 </div>
@@ -299,7 +301,7 @@ export const Dashboard = () => {
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
                     {userRole === 'independent' ? 'Ganancia Neta (Bolsillo)' : 'Utilidad Operativa'}
                 </p>
-                <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">{formatterCOP.format(financialData.netProfit)}</h3>
+                <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">{format(financialData.netProfit)}</h3>
               </div>
               <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 mt-4">
                   {userRole === 'independent' ? 'Disponible tras gastos' : 'Caja final estudio'}
@@ -314,14 +316,14 @@ export const Dashboard = () => {
                     <p className="text-[var(--brand-accent)] text-[9px] uppercase font-black mb-1 opacity-60">
                         Estudio Gross
                     </p>
-                    <p className="text-xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(financialData.effectiveIncome)}</p>
+                    <p className="text-xl font-black font-mono text-[var(--brand-accent)]">{format(financialData.effectiveIncome)}</p>
                   </div>
               )}
 
               {/* TARJETA 3: GASTOS (PARA TODOS) */}
               <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2rem]">
                 <p className="text-red-500 text-[9px] uppercase font-black mb-1 opacity-60">Gastos Registrados</p>
-                <p className="text-xl font-black font-mono text-red-500">{formatterCOP.format(financialData.totalExpenses)}</p>
+                <p className="text-xl font-black font-mono text-red-500">{format(financialData.totalExpenses)}</p>
               </div>
             </div>
             

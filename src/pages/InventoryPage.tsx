@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { formatterCOP } from '../lib/formatterCOP';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Package, Droplets, Search, ChevronDown, ChevronUp, 
   Layers, Plus, Minus, Calendar, Trash2, X, DollarSign 
 } from 'lucide-react';
+import { useCurrency } from '../hooks/useCurrency';
 
 // --- TIPOS ---
 type UnitType = 'box' | 'unit' | 'mix';
@@ -27,6 +27,7 @@ interface InventoryItem {
 
 export const InventoryPage = () => {
   const navigate = useNavigate();
+  const { format } = useCurrency();
   
   // --- ESTADOS DE DATOS ---
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -486,7 +487,7 @@ export const InventoryPage = () => {
                                         </h4>
                                         <div className="flex flex-col items-start gap-1">
                                             <p className="text-[9px] text-[var(--brand-muted)] font-black uppercase tracking-widest italic">
-                                                {formatterCOP.format(item.cost_per_unit)}
+                                                {format(item.cost_per_unit)}
                                             </p>
                                             <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
                                                 item.unit_type === 'box' ? 'bg-[var(--brand-accent)]/20 text-[var(--brand-accent)]' : 

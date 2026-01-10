@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { formatterCOP } from '../lib/formatterCOP';
 import { Share2, FileText, ArrowLeft } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCurrency } from '../hooks/useCurrency';
 
 export const ArtistDetails = () => {
+  const { format } = useCurrency();
   const { id } = useParams();
   const navigate = useNavigate();
   const [artist, setArtist] = useState<any>(null);
@@ -54,8 +55,8 @@ export const ArtistDetails = () => {
   const studioContribution = (totalInvoiced * studioRate) / 100;
 
   const handleWhatsAppShare = () => {
-    const total = formatterCOP.format(totalInvoiced);
-    const liquidacion = formatterCOP.format(artistLiquidation);
+    const total = format(totalInvoiced);
+    const liquidacion = format(artistLiquidation);
     const mesActual = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
     const messageText = `*ESTRUCTO - Business Intelligence*
@@ -100,9 +101,9 @@ _Generado por ESTRUCTO_`;
       startY: 70,
       head: [['Concepto', 'Monto']],
       body: [
-        ['Total Facturado Bruto', formatterCOP.format(totalInvoiced)],
-        [`Comisión Artista (${artistRate}%)`, formatterCOP.format(artistLiquidation)],
-        [`Aporte Estudio (${studioRate}%)`, formatterCOP.format(studioContribution)],
+        ['Total Facturado Bruto', format(totalInvoiced)],
+        [`Comisión Artista (${artistRate}%)`, format(artistLiquidation)],
+        [`Aporte Estudio (${studioRate}%)`, format(studioContribution)],
       ],
       headStyles: { fillColor: [24, 24, 27] }, 
       styles: { font: 'helvetica' }
@@ -115,7 +116,7 @@ _Generado por ESTRUCTO_`;
       body: works.map(w => [
         new Date(w.created_at || w.date).toLocaleDateString(),
         w.client_name || 'N/A',
-        formatterCOP.format(w.total_price)
+        format(w.total_price)
       ]),
       headStyles: { fillColor: [0, 0, 0] } 
     });
@@ -148,7 +149,7 @@ _Generado por ESTRUCTO_`;
                 <span className="text-black/10 font-black italic text-5xl md:text-6xl tracking-tighter">#{rank}</span>
               </div>
               <p className="text-[11px] font-black uppercase tracking-[0.4em] text-black/40 mb-3">Liquidación Neta</p>
-              <h3 className="text-5xl md:text-6xl xl:text-7xl font-black text-black tabular-nums tracking-tighter leading-none">{formatterCOP.format(artistLiquidation)}</h3>
+              <h3 className="text-5xl md:text-6xl xl:text-7xl font-black text-black tabular-nums tracking-tighter leading-none">{format(artistLiquidation)}</h3>
             </div>
           </div>
 
@@ -172,7 +173,7 @@ _Generado por ESTRUCTO_`;
                     <p className="text-zinc-200 font-black uppercase italic text-xs group-hover:text-emerald-400 transition-colors">{work.client_name || 'Tatuaje'}</p>
                     <p className="text-[8px] text-zinc-700 font-bold uppercase mt-1">{new Date(work.created_at || work.date).toLocaleDateString()}</p>
                   </div>
-                  <p className="text-zinc-400 font-mono text-sm font-bold">{formatterCOP.format(work.total_price)}</p>
+                  <p className="text-zinc-400 font-mono text-sm font-bold">{format(work.total_price)}</p>
                 </div>
               ))}
             </div>

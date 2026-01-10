@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
-import { formatterCOP } from '../lib/formatterCOP';
+import { useCurrency } from '../hooks/useCurrency';
+
 
 export const Stats = ({ works }: { works: any[] }) => {
+  const { format } = useCurrency();
   // Agrupamos por artista
   const performance = works.reduce((acc: any, work) => {
     const artist = work.artist_profile;
@@ -47,13 +49,13 @@ export const Stats = ({ works }: { works: any[] }) => {
             <div>
               <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Total Bruto</p>
               <p className="text-xl font-black font-mono text-white">
-                {formatterCOP.format(artist.total)}
+                {format(artist.total)}
               </p>
             </div>
             <div className="text-right">
               <p className="text-[9px] font-black text-emerald-500/50 uppercase tracking-widest">Estudio</p>
               <p className="text-sm font-black font-mono text-emerald-500">
-                {formatterCOP.format(artist.studioShare)}
+                {format(artist.studioShare)}
               </p>
             </div>
           </div>

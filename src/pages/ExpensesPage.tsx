@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { formatterCOP } from '../lib/formatterCOP';
+import { useCurrency } from '../hooks/useCurrency';
+
 
 interface Expense {
   id: string;
@@ -13,6 +14,7 @@ interface Expense {
 const CATEGORIES = ['Servicios', 'Renta', 'Marketing', 'Mantenimiento', 'Insumos', 'Otros'];
 
 export const ExpensesPage = () => {
+  const { format } = useCurrency();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -179,7 +181,7 @@ export const ExpensesPage = () => {
           <div>
             <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-1">Salida Acumulada</p>
             <p className="text-3xl font-black text-white font-mono tracking-tighter">
-              {formatterCOP.format(totalExpenses)}
+              {format(totalExpenses)}
             </p>
           </div>
         </div>
@@ -236,7 +238,7 @@ export const ExpensesPage = () => {
                     
                     <div className="flex items-center justify-between w-full md:w-auto pl-16 md:pl-0">
                       <p className="text-2xl font-black text-red-500 font-mono tracking-tighter">
-                        -{formatterCOP.format(exp.amount)}
+                        -{format(exp.amount)}
                       </p>
                     </div>
                   </div>

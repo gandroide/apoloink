@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { formatterCOP } from '../lib/formatterCOP';
 import { Calendar, DollarSign, User } from 'lucide-react';
+import { useCurrency } from "../hooks/useCurrency";
 
 
 
@@ -15,6 +15,7 @@ interface Work {
 
   
 export const IndependentArtistView = ({ currentUserId }: { currentUserId: string }) => {
+    const { format } = useCurrency();
     const [works, setWorks] = useState<Work[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -74,7 +75,7 @@ export const IndependentArtistView = ({ currentUserId }: { currentUserId: string
               </div>
               <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-[2.5rem] min-w-[200px]">
                   <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Acumulado</p>
-                  <p className="text-3xl font-black text-white font-mono tracking-tighter">{formatterCOP.format(totalIncome)}</p>
+                  <p className="text-3xl font-black text-white font-mono tracking-tighter">{format(totalIncome)}</p>
               </div>
           </header>
   
@@ -125,7 +126,7 @@ export const IndependentArtistView = ({ currentUserId }: { currentUserId: string
                                           </p>
                                       </div>
                                       <div className="text-right">
-                                          <p className="text-xl font-black text-emerald-500 font-mono tracking-tighter">+{formatterCOP.format(work.total_price)}</p>
+                                          <p className="text-xl font-black text-emerald-500 font-mono tracking-tighter">+{format(work.total_price)}</p>
                                       </div>
                                   </div>
                               ))

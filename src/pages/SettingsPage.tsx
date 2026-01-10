@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../hooks/useCurrency';
 import { 
   Store, Shield, CreditCard, Lock, User,
-  AlertTriangle, CheckCircle, Eye, EyeOff, Save 
+  AlertTriangle, CheckCircle, Eye, EyeOff, Save, Globe 
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  // Hook de moneda
+  const { currency, updateCurrency } = useCurrency();
+  
   const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'security'>('profile');
   const { user } = useAuth();
   
@@ -16,8 +20,11 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
   
-  // --- ESTADOS DEL FORMULARIO (Genéricos) ---
-  const [targetId, setTargetId] = useState<string | null>(null); // ID del perfil o del estudio
+  // Estado local para el selector de moneda
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
+  
+  // --- ESTADOS DEL FORMULARIO ---
+  const [targetId, setTargetId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -34,7 +41,7 @@ export default function SettingsPage() {
     {
       id: 'free',
       name: 'Starter',
-      price: '0€',
+      price: '0',
       period: '/mes',
       features: ['1 Cuenta', 'Gestión de Citas', 'Inventario Básico'],
       current: true,
@@ -43,7 +50,7 @@ export default function SettingsPage() {
     {
       id: 'pro',
       name: 'Artist Pro',
-      price: '15€',
+      price: '15',
       period: '/mes',
       features: ['Estadísticas Avanzadas', 'Inventario Ilimitado', 'Exportar Contabilidad', 'Soporte Prioritario'],
       current: false,
@@ -53,13 +60,18 @@ export default function SettingsPage() {
     {
       id: 'agency',
       name: 'Studio Master',
-      price: '45€',
+      price: '45',
       period: '/mes',
       features: ['Múltiples Artistas', 'Gestión de Comisiones', 'Control de Acceso', 'Multi-Sede'],
       current: false,
       color: 'border-[var(--brand-border)]'
     }
   ];
+
+  // Sincronizar estado local de moneda cuando carga el hook
+  useEffect(() => {
+    setSelectedCurrency(currency);
+  }, [currency]);
 
   useEffect(() => {
     if (user) loadSettings();
@@ -69,7 +81,6 @@ export default function SettingsPage() {
     try {
       setInitialLoading(true);
       
-      // 1. Obtener Perfil Base
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -78,11 +89,8 @@ export default function SettingsPage() {
 
       if (!profile) return;
 
-      // 2. Determinar Lógica según Rol
       if (profile.type === 'owner' && profile.studio_id) {
-          // --- MODO ESTUDIO ---
           setUserRole('owner');
-          // Buscamos los datos en la tabla STUDIOS
           const { data: studio } = await supabase
             .from('studios')
             .select('*')
@@ -98,13 +106,12 @@ export default function SettingsPage() {
             });
           }
       } else {
-          // --- MODO ARTISTA INDEPENDIENTE ---
           setUserRole('independent');
-          setTargetId(profile.id); // El ID objetivo es el mismo usuario
+          setTargetId(profile.id);
           setFormData({
               name: profile.name || '',
-              phone: profile.phone || '',     // Requiere haber corrido el SQL previo
-              address: profile.address || ''  // Requiere haber corrido el SQL previo
+              phone: profile.phone || '',
+              address: profile.address || ''
           });
       }
 
@@ -121,10 +128,12 @@ export default function SettingsPage() {
     setMessage(null);
     
     try {
-      let error;
+      // 1. Guardar Moneda
+      await updateCurrency(selectedCurrency);
 
+      // 2. Guardar Datos Perfil/Estudio
+      let error;
       if (userRole === 'owner') {
-        // Actualizar tabla STUDIOS
         const { error: err } = await supabase
             .from('studios')
             .update({ 
@@ -135,7 +144,6 @@ export default function SettingsPage() {
             .eq('id', targetId);
         error = err;
       } else {
-        // Actualizar tabla PROFILES (Artista)
         const { error: err } = await supabase
             .from('profiles')
             .update({ 
@@ -260,7 +268,7 @@ export default function SettingsPage() {
                     type="text" 
                     value={formData.name} 
                     onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                    placeholder={userRole === 'independent' ? "Ej. Alex Ink" : "Ej. Studio Name"} 
+                    placeholder={userRole === 'independent' ? "Ej. Gandroide" : "Ej. Studio Name"} 
                     className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30 font-bold" 
                 />
               </div>
@@ -274,6 +282,7 @@ export default function SettingsPage() {
                     className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30 font-mono" 
                 />
               </div>
+              
               <div className="col-span-2 space-y-2">
                 <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">
                     {userRole === 'independent' ? 'Ubicación / Ciudad' : 'Dirección Fiscal'}
@@ -282,10 +291,33 @@ export default function SettingsPage() {
                     type="text" 
                     value={formData.address} 
                     onChange={(e) => setFormData({...formData, address: e.target.value})} 
-                    placeholder={userRole === 'independent' ? "Ej. Madrid, España" : "Calle Principal 123"} 
+                    placeholder={userRole === 'independent' ? "Ej. Lisboa, Portugal" : "Calle Principal 123"} 
                     className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30" 
                 />
               </div>
+
+              {/* --- AQUÍ ESTÁ EL NUEVO SELECTOR DE MONEDA --- */}
+              <div className="col-span-2 space-y-2">
+                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider flex items-center gap-2">
+                   <Globe size={12} /> Moneda Principal
+                </label>
+                <div className="relative">
+                    <select 
+                        className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all appearance-none font-bold cursor-pointer"
+                        value={selectedCurrency}
+                        onChange={(e) => setSelectedCurrency(e.target.value)}
+                    >
+                        <option value="COP">🇨🇴 Peso Colombiano (COP)</option>
+                        <option value="USD">🇺🇸 Dólar Estadounidense (USD)</option>
+                        <option value="EUR">🇪🇺 Euro (EUR)</option>
+                        <option value="MXN">🇲🇽 Peso Mexicano (MXN)</option>
+                    </select>
+                    {/* Flechita decorativa */}
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--brand-primary)] opacity-50">▼</div>
+                </div>
+                <p className="text-[9px] text-[var(--brand-primary)] opacity-40">Cambia la visualización de precios en toda la app.</p>
+              </div>
+
             </div>
             
             {message && (
@@ -307,7 +339,6 @@ export default function SettingsPage() {
         {activeTab === 'subscription' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-2 fade-in duration-500">
             
-            {/* Tarjeta Plan Actual */}
             <div className="bg-gradient-to-r from-[var(--brand-accent)]/10 to-transparent border border-[var(--brand-accent)]/30 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-[var(--brand-accent)] rounded-full flex items-center justify-center text-[var(--brand-bg)] shadow-[0_0_20px_rgba(var(--brand-accent),0.5)]">
@@ -324,7 +355,6 @@ export default function SettingsPage() {
                 </button>
             </div>
 
-            {/* Grid de Planes */}
             <div className="grid md:grid-cols-3 gap-6">
                 {plans.map((plan) => (
                     <div key={plan.id} className={`bg-[var(--brand-surface)] border rounded-2xl p-6 relative flex flex-col transition-transform hover:scale-[1.02] duration-300 ${plan.color}`}>
@@ -333,15 +363,15 @@ export default function SettingsPage() {
                                 Recomendado
                             </div>
                         )}
-                        
                         <div className="mb-6">
                             <h3 className="text-lg font-bold text-[var(--brand-primary)] uppercase">{plan.name}</h3>
                             <div className="flex items-baseline gap-1 mt-2">
-                                <span className="text-3xl font-black text-[var(--brand-primary)]">{plan.price}</span>
+                                <span className="text-3xl font-black text-[var(--brand-primary)]">
+                                    {currency === 'COP' ? `$${parseInt(plan.price) * 4000}` : `${plan.price}€`}
+                                </span>
                                 <span className="text-sm text-[var(--brand-primary)] opacity-60">{plan.period}</span>
                             </div>
                         </div>
-
                         <ul className="space-y-4 mb-8 flex-1">
                             {plan.features.map((feature, i) => (
                                 <li key={i} className="flex items-center gap-3 text-sm text-[var(--brand-primary)] opacity-70">
@@ -352,19 +382,7 @@ export default function SettingsPage() {
                                 </li>
                             ))}
                         </ul>
-
-                        <button 
-                            disabled={plan.current}
-                            className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider text-xs transition-all ${
-                                plan.current 
-                                ? 'bg-[var(--brand-bg)] text-[var(--brand-primary)] opacity-40 cursor-default border border-[var(--brand-border)]' 
-                                : plan.popular 
-                                    ? 'bg-[var(--brand-accent)] text-[var(--brand-bg)] hover:opacity-90 shadow-[0_0_15px_rgba(var(--brand-accent),0.3)]' 
-                                    : 'bg-[var(--brand-primary)] text-[var(--brand-bg)] hover:opacity-90'
-                            }`}
-                        >
-                            {plan.current ? 'Plan Actual' : 'Seleccionar Plan'}
-                        </button>
+                        <button disabled={plan.current} className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider text-xs transition-all ${plan.current ? 'bg-[var(--brand-bg)] text-[var(--brand-primary)] opacity-40 cursor-default border border-[var(--brand-border)]' : plan.popular ? 'bg-[var(--brand-accent)] text-[var(--brand-bg)] hover:opacity-90 shadow-[0_0_15px_rgba(var(--brand-accent),0.3)]' : 'bg-[var(--brand-primary)] text-[var(--brand-bg)] hover:opacity-90'}`}>{plan.current ? 'Plan Actual' : 'Seleccionar Plan'}</button>
                     </div>
                 ))}
             </div>
@@ -374,88 +392,46 @@ export default function SettingsPage() {
         {/* === TAB: SEGURIDAD === */}
         {activeTab === 'security' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-2 fade-in duration-500">
-            
-            {/* 1. CAMBIAR CONTRASEÑA */}
             <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-8 rounded-2xl shadow-xl">
               <div className="flex items-center gap-4 mb-8">
                  <div className="w-12 h-12 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center text-[var(--brand-accent)] border border-[var(--brand-accent)]/20">
                     <Lock size={24} />
                  </div>
                  <div>
-                    <h2 className="text-xl font-bold text-[var(--brand-primary)] uppercase tracking-wide">Contraseña y Acceso</h2>
-                    <p className="text-sm text-[var(--brand-primary)] opacity-60">Actualiza tu contraseña para mantener tu cuenta segura.</p>
+                    <h2 className="text-xl font-bold text-[var(--brand-primary)] uppercase tracking-wide">Contraseña</h2>
+                    <p className="text-sm text-[var(--brand-primary)] opacity-60">Actualiza tu contraseña.</p>
                  </div>
               </div>
-
               <div className="grid md:grid-cols-2 gap-6 max-w-3xl">
                   <div className="space-y-2 relative">
                     <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Nueva Contraseña</label>
                     <div className="relative">
-                        <input 
-                            type={showPassword ? "text" : "password"} 
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
-                            className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30"
-                        />
-                        <button 
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--brand-primary)] opacity-60 hover:opacity-100"
-                        >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
+                        <input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30"/>
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--brand-primary)] opacity-60 hover:opacity-100">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Confirmar Contraseña</label>
-                    <input 
-                        type="password" 
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Repite la contraseña"
-                        className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30"
-                    />
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repite la contraseña" className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30"/>
                   </div>
               </div>
-
               {message && (
                   <div className={`mt-6 p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
                     {message.type === 'success' ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
                     {message.text}
                   </div>
               )}
-
               <div className="mt-8 border-t border-[var(--brand-border)] pt-6 flex justify-end">
-                  <button 
-                    onClick={handleUpdatePassword}
-                    disabled={loading || !newPassword}
-                    className="bg-[var(--brand-primary)] text-[var(--brand-bg)] hover:opacity-90 font-black uppercase tracking-wider py-3 px-8 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Actualizando...' : 'Actualizar Contraseña'}
-                  </button>
+                  <button onClick={handleUpdatePassword} disabled={loading || !newPassword} className="bg-[var(--brand-primary)] text-[var(--brand-bg)] hover:opacity-90 font-black uppercase tracking-wider py-3 px-8 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">{loading ? 'Actualizando...' : 'Actualizar Contraseña'}</button>
               </div>
             </div>
-
-            {/* 2. ZONA DE PELIGRO */}
             <div className="border border-red-900/30 bg-red-500/5 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-start gap-4">
-                    <div className="p-3 bg-red-500/10 rounded-lg text-red-500">
-                        <AlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-red-500">Zona de Peligro</h3>
-                        <p className="text-sm text-[var(--brand-primary)] opacity-60 mt-1">
-                            Una vez eliminas tu cuenta, no hay vuelta atrás. Por favor, asegúrate antes de hacerlo.
-                        </p>
-                    </div>
+                    <div className="p-3 bg-red-500/10 rounded-lg text-red-500"><AlertTriangle size={24} /></div>
+                    <div><h3 className="text-lg font-bold text-red-500">Zona de Peligro</h3><p className="text-sm text-[var(--brand-primary)] opacity-60 mt-1">Una vez eliminas tu cuenta, no hay vuelta atrás.</p></div>
                 </div>
-                <button className="whitespace-nowrap px-6 py-3 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold uppercase text-xs tracking-widest transition-all">
-                    Eliminar Cuenta
-                </button>
+                <button className="whitespace-nowrap px-6 py-3 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold uppercase text-xs tracking-widest transition-all">Eliminar Cuenta</button>
             </div>
-
           </div>
         )}
 

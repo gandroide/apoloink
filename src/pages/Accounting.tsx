@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccounting } from '../hooks/useAccounting';
-import { formatterCOP } from '../lib/formatterCOP';
 import { supabase } from '../lib/supabase'; // Necesario para verificar rol
+import { useCurrency } from '../hooks/useCurrency';
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -11,6 +11,7 @@ const MONTHS = [
 
 export const Accounting = () => {
   const navigate = useNavigate();
+  const { format } = useCurrency();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -149,7 +150,7 @@ export const Accounting = () => {
                       <p className={`text-xl font-black font-mono tracking-tighter ${
                           userRole === 'independent' ? 'text-emerald-400' : 'text-zinc-200'
                       }`}>
-                        {formatterCOP.format(work.total_price)}
+                        {format(work.total_price)}
                       </p>
                     </div>
                   </button>
@@ -173,7 +174,7 @@ export const Accounting = () => {
                     {userRole === 'independent' ? 'Ingreso Total Personal' : 'Bruto Estudio Acumulado'}
                 </p>
                 <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none break-all">
-                  {formatterCOP.format(totalIncome)}
+                  {format(totalIncome)}
                 </h3>
               </div>
               <p className="text-[9px] font-bold opacity-50 uppercase tracking-widest italic text-left mt-8">
