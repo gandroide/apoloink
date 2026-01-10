@@ -2,24 +2,29 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Store, Shield, CreditCard, Lock, 
-  AlertTriangle, CheckCircle, Eye, EyeOff 
+  Store, Shield, CreditCard, Lock, User,
+  AlertTriangle, CheckCircle, Eye, EyeOff, Save 
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'subscription' | 'security'>('studio');
+  const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'security'>('profile');
   const { user } = useAuth();
   
-  // --- ESTADOS ---
+  // --- ESTADOS DE LOGICA ---
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-
   const [initialLoading, setInitialLoading] = useState(true);
-  const [studioId, setStudioId] = useState<string | null>(null);
-  const [studioName, setStudioName] = useState('');
-  const [studioPhone, setStudioPhone] = useState('');
-  const [studioAddress, setStudioAddress] = useState('');
+  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
+  
+  // --- ESTADOS DEL FORMULARIO (Genéricos) ---
+  const [targetId, setTargetId] = useState<string | null>(null); // ID del perfil o del estudio
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    address: ''
+  });
 
+  // --- PASSWORD ---
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,79 +36,120 @@ export default function SettingsPage() {
       name: 'Starter',
       price: '0€',
       period: '/mes',
-      features: ['1 Artista', 'Gestión de Citas Básica', 'Inventario Limitado'],
+      features: ['1 Cuenta', 'Gestión de Citas', 'Inventario Básico'],
       current: true,
       color: 'border-[var(--brand-border)]'
     },
     {
       id: 'pro',
-      name: 'Studio Pro',
-      price: '29€',
+      name: 'Artist Pro',
+      price: '15€',
       period: '/mes',
-      features: ['Hasta 5 Artistas', 'Inventario Avanzado', 'Reportes Financieros', 'Soporte Prioritario'],
+      features: ['Estadísticas Avanzadas', 'Inventario Ilimitado', 'Exportar Contabilidad', 'Soporte Prioritario'],
       current: false,
       popular: true,
       color: 'border-[var(--brand-accent)] shadow-[0_0_30px_rgba(16,185,129,0.15)]'
     },
     {
       id: 'agency',
-      name: 'Unlimited',
-      price: '99€',
+      name: 'Studio Master',
+      price: '45€',
       period: '/mes',
-      features: ['Artistas Ilimitados', 'Multi-Sede', 'API Access', 'Account Manager'],
+      features: ['Múltiples Artistas', 'Gestión de Comisiones', 'Control de Acceso', 'Multi-Sede'],
       current: false,
       color: 'border-[var(--brand-border)]'
     }
   ];
 
   useEffect(() => {
-    if (user) getStudioData();
+    if (user) loadSettings();
   }, [user]);
 
-  const getStudioData = async () => {
+  const loadSettings = async () => {
     try {
       setInitialLoading(true);
-      const { data: memberData, error: memberError } = await supabase
-        .from('studio_members')
-        .select('studio_id')
-        .eq('user_id', user!.id)
-        .maybeSingle();
-
-      if (memberError || !memberData) {
-         setInitialLoading(false);
-         return;
-      }
-      setStudioId(memberData.studio_id);
-      const { data: studioData } = await supabase
-        .from('studios')
+      
+      // 1. Obtener Perfil Base
+      const { data: profile } = await supabase
+        .from('profiles')
         .select('*')
-        .eq('id', memberData.studio_id)
+        .eq('id', user!.id)
         .single();
 
-      if (studioData) {
-        setStudioName(studioData.name || '');
-        setStudioPhone(studioData.phone || ''); 
-        setStudioAddress(studioData.address || ''); 
+      if (!profile) return;
+
+      // 2. Determinar Lógica según Rol
+      if (profile.type === 'owner' && profile.studio_id) {
+          // --- MODO ESTUDIO ---
+          setUserRole('owner');
+          // Buscamos los datos en la tabla STUDIOS
+          const { data: studio } = await supabase
+            .from('studios')
+            .select('*')
+            .eq('id', profile.studio_id)
+            .single();
+            
+          if (studio) {
+            setTargetId(studio.id);
+            setFormData({
+                name: studio.name || '',
+                phone: studio.phone || '',
+                address: studio.address || ''
+            });
+          }
+      } else {
+          // --- MODO ARTISTA INDEPENDIENTE ---
+          setUserRole('independent');
+          setTargetId(profile.id); // El ID objetivo es el mismo usuario
+          setFormData({
+              name: profile.name || '',
+              phone: profile.phone || '',     // Requiere haber corrido el SQL previo
+              address: profile.address || ''  // Requiere haber corrido el SQL previo
+          });
       }
+
     } catch (error) {
-      console.error('Error cargando estudio');
+      console.error('Error cargando configuración', error);
     } finally {
       setInitialLoading(false);
     }
   };
 
-  const handleSaveStudio = async () => {
-    if (!studioId) return;
+  const handleSave = async () => {
+    if (!targetId) return;
     setLoading(true);
     setMessage(null);
+    
     try {
-      const { error } = await supabase
-        .from('studios')
-        .update({ name: studioName, phone: studioPhone, address: studioAddress })
-        .eq('id', studioId);
+      let error;
+
+      if (userRole === 'owner') {
+        // Actualizar tabla STUDIOS
+        const { error: err } = await supabase
+            .from('studios')
+            .update({ 
+                name: formData.name, 
+                phone: formData.phone, 
+                address: formData.address 
+            })
+            .eq('id', targetId);
+        error = err;
+      } else {
+        // Actualizar tabla PROFILES (Artista)
+        const { error: err } = await supabase
+            .from('profiles')
+            .update({ 
+                name: formData.name, 
+                phone: formData.phone, 
+                address: formData.address 
+            })
+            .eq('id', targetId);
+        error = err;
+      }
 
       if (error) throw error;
-      setMessage({ text: 'Datos del estudio actualizados', type: 'success' });
+      
+      setMessage({ text: 'Información actualizada correctamente', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error: any) {
       setMessage({ text: 'Error: ' + error.message, type: 'error' });
@@ -118,7 +164,7 @@ export default function SettingsPage() {
       return;
     }
     if (newPassword.length < 6) {
-      setMessage({ text: 'La contraseña debe tener al menos 6 caracteres', type: 'error' });
+      setMessage({ text: 'Mínimo 6 caracteres', type: 'error' });
       return;
     }
     setLoading(true);
@@ -126,7 +172,7 @@ export default function SettingsPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setMessage({ text: 'Contraseña actualizada correctamente', type: 'success' });
+      setMessage({ text: 'Contraseña actualizada', type: 'success' });
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setMessage(null), 3000);
@@ -145,13 +191,19 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-black text-[var(--brand-primary)] tracking-tight italic uppercase">
           Configuración
         </h1>
-        <p className="text-[var(--brand-primary)] opacity-60 mt-2">Gestiona tu estudio y la seguridad de tu cuenta.</p>
+        <p className="text-[var(--brand-primary)] opacity-60 mt-2">
+            {userRole === 'independent' ? 'Gestiona tu marca personal.' : 'Gestiona tu estudio y cuenta.'}
+        </p>
       </div>
 
       {/* PESTAÑAS */}
       <div className="flex gap-8 border-b border-[var(--brand-border)] pb-1 overflow-x-auto scrollbar-hide">
         {[
-          { id: 'studio', label: 'MI ESTUDIO', icon: <Store size={16} /> },
+          { 
+            id: 'profile', 
+            label: userRole === 'independent' ? 'PERFIL PRO' : 'EL ESTUDIO', 
+            icon: userRole === 'independent' ? <User size={16} /> : <Store size={16} /> 
+          },
           { id: 'subscription', label: 'SUSCRIPCIÓN', icon: <CreditCard size={16} /> },
           { id: 'security', label: 'SEGURIDAD', icon: <Shield size={16} /> },
         ].map((tab) => (
@@ -174,8 +226,8 @@ export default function SettingsPage() {
       {/* CONTENIDO */}
       <div className="grid gap-6">
         
-        {/* === TAB: ESTUDIO === */}
-        {activeTab === 'studio' && (
+        {/* === TAB: PERFIL / ESTUDIO === */}
+        {activeTab === 'profile' && (
           <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-8 rounded-2xl shadow-xl relative overflow-hidden">
              {initialLoading && (
                 <div className="absolute inset-0 bg-[var(--brand-surface)] z-10 flex items-center justify-center">
@@ -184,32 +236,54 @@ export default function SettingsPage() {
             )}
             
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center text-[var(--brand-accent)] border border-[var(--brand-accent)]/20">
-                <Store size={24} />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
+                  userRole === 'independent' 
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                    : 'bg-[var(--brand-accent)]/10 text-[var(--brand-accent)] border-[var(--brand-accent)]/20'
+              }`}>
+                {userRole === 'independent' ? <User size={24} /> : <Store size={24} />}
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[var(--brand-primary)] uppercase tracking-wide">Información del Estudio</h2>
-                <p className="text-sm text-[var(--brand-primary)] opacity-60">Estos datos aparecerán en tus facturas.</p>
+                <h2 className="text-xl font-bold text-[var(--brand-primary)] uppercase tracking-wide">
+                    {userRole === 'independent' ? 'Información Profesional' : 'Información del Estudio'}
+                </h2>
+                <p className="text-sm text-[var(--brand-primary)] opacity-60">Estos datos aparecerán en tus reportes.</p>
               </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Nombre del Estudio</label>
-                <input type="text" value={studioName} onChange={(e) => setStudioName(e.target.value)} placeholder="Ej. Ink Master Studio" 
-                  className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30" 
+                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">
+                    {userRole === 'independent' ? 'Nombre Artístico' : 'Nombre del Estudio'}
+                </label>
+                <input 
+                    type="text" 
+                    value={formData.name} 
+                    onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                    placeholder={userRole === 'independent' ? "Ej. Alex Ink" : "Ej. Studio Name"} 
+                    className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30 font-bold" 
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Teléfono</label>
-                <input type="text" value={studioPhone} onChange={(e) => setStudioPhone(e.target.value)} placeholder="+34 600 000 000" 
-                  className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30" 
+                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Teléfono / WhatsApp</label>
+                <input 
+                    type="text" 
+                    value={formData.phone} 
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                    placeholder="+34 600 000 000" 
+                    className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30 font-mono" 
                 />
               </div>
               <div className="col-span-2 space-y-2">
-                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">Dirección</label>
-                <input type="text" value={studioAddress} onChange={(e) => setStudioAddress(e.target.value)} placeholder="Calle Principal 123" 
-                  className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30" 
+                <label className="text-[10px] font-black text-[var(--brand-primary)] opacity-60 uppercase tracking-wider">
+                    {userRole === 'independent' ? 'Ubicación / Ciudad' : 'Dirección Fiscal'}
+                </label>
+                <input 
+                    type="text" 
+                    value={formData.address} 
+                    onChange={(e) => setFormData({...formData, address: e.target.value})} 
+                    placeholder={userRole === 'independent' ? "Ej. Madrid, España" : "Calle Principal 123"} 
+                    className="w-full bg-[var(--brand-bg)] border border-[var(--brand-border)] rounded-xl px-4 py-3 text-[var(--brand-primary)] focus:outline-none focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-accent)] transition-all placeholder:text-[var(--brand-primary)]/30" 
                 />
               </div>
             </div>
@@ -221,7 +295,8 @@ export default function SettingsPage() {
             )}
 
             <div className="mt-8 flex justify-end">
-              <button onClick={handleSaveStudio} disabled={loading} className="bg-[var(--brand-accent)] hover:opacity-90 text-[var(--brand-bg)] font-black uppercase tracking-wider py-3 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(var(--brand-accent),0.3)] disabled:opacity-50 active:scale-95">
+              <button onClick={handleSave} disabled={loading} className="bg-[var(--brand-accent)] hover:opacity-90 text-[var(--brand-bg)] font-black uppercase tracking-wider py-3 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(var(--brand-accent),0.3)] disabled:opacity-50 active:scale-95 flex items-center gap-2">
+                <Save size={16} />
                 {loading ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
@@ -244,7 +319,7 @@ export default function SettingsPage() {
                         <p className="text-sm text-[var(--brand-primary)] opacity-60">Próxima renovación: <span className="text-[var(--brand-primary)] opacity-100 font-bold">Gratis de por vida</span></p>
                     </div>
                 </div>
-                <button className="bg-[var(--brand-surface)] border border-[var(--brand-border)] hover:border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold py-3 px-6 rounded-xl transition-all">
+                <button className="bg-[var(--brand-surface)] border border-[var(--brand-border)] hover:border-[var(--brand-primary)] text-[var(--brand-primary)] font-bold py-3 px-6 rounded-xl transition-all text-xs uppercase tracking-widest">
                     Gestionar Facturación
                 </button>
             </div>
@@ -255,7 +330,7 @@ export default function SettingsPage() {
                     <div key={plan.id} className={`bg-[var(--brand-surface)] border rounded-2xl p-6 relative flex flex-col transition-transform hover:scale-[1.02] duration-300 ${plan.color}`}>
                         {plan.popular && (
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--brand-accent)] text-[var(--brand-bg)] text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full shadow-lg">
-                                Más Popular
+                                Recomendado
                             </div>
                         )}
                         
@@ -280,7 +355,6 @@ export default function SettingsPage() {
 
                         <button 
                             disabled={plan.current}
-                            // CORRECCIÓN DE CONTRASTE AQUÍ:
                             className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider text-xs transition-all ${
                                 plan.current 
                                 ? 'bg-[var(--brand-bg)] text-[var(--brand-primary)] opacity-40 cursor-default border border-[var(--brand-border)]' 
@@ -293,14 +367,6 @@ export default function SettingsPage() {
                         </button>
                     </div>
                 ))}
-            </div>
-
-            {/* Historial */}
-            <div className="pt-8 border-t border-[var(--brand-border)]">
-                <h3 className="text-sm font-bold text-[var(--brand-primary)] opacity-60 uppercase tracking-wider mb-4">Historial de Facturas</h3>
-                <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] rounded-xl p-8 text-center">
-                    <p className="text-[var(--brand-primary)] opacity-50 text-sm">No hay facturas disponibles todavía.</p>
-                </div>
             </div>
           </div>
         )}

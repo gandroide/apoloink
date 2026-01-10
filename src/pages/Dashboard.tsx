@@ -27,11 +27,14 @@ export const Dashboard = () => {
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('axis-theme') || 'dark');
   const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'team'>('overview');
   
+  // Nuevo Estado de Rol
+  const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
+
   const { fetchWorks, works, loading: loadingWorks } = useAccounting();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
 
-  // 1. SOLUCIÓN GRÁFICOS: Obtenemos los colores reales (HEX)
+  // 1. GESTIÓN DE TEMA
   const themeColors = useMemo(() => {
     return THEMES.find(t => t.id === currentTheme)?.colors || THEMES[0].colors;
   }, [currentTheme]);
@@ -40,12 +43,9 @@ export const Dashboard = () => {
     const theme = THEMES.find(t => t.id === themeId);
     if (theme) {
       const root = document.documentElement;
-      root.style.setProperty('--brand-bg', theme.colors.bg);
-      root.style.setProperty('--brand-surface', theme.colors.surface);
-      root.style.setProperty('--brand-primary', theme.colors.primary);
-      root.style.setProperty('--brand-accent', theme.colors.accent);
-      root.style.setProperty('--brand-border', theme.colors.border);
-      root.style.setProperty('--brand-danger', theme.colors.danger || '#ef4444');
+      Object.entries(theme.colors).forEach(([key, value]) => {
+        root.style.setProperty(`--brand-${key}`, value);
+      });
       localStorage.setItem('axis-theme', themeId);
       setCurrentTheme(themeId);
     }
@@ -56,32 +56,80 @@ export const Dashboard = () => {
     applyTheme(savedTheme);
   }, []);
 
+  // 2. CARGA DE DATOS Y ROL
   const loadData = async () => {
     setLoadingExpenses(true);
-    await fetchWorks(selectedMonth, selectedYear);
     
-    // Cargamos gastos
-    const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
-    const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).toISOString();
-    
-    const { data } = await supabase.from('expenses').select('*').gte('date', startDate).lte('date', endDate);
-    setExpenses(data || []);
+    // a) Detectar Rol
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('type, studio_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        
+        setUserRole(profile?.type === 'owner' ? 'owner' : 'independent');
+        
+        // b) Cargar Trabajos
+        await fetchWorks(selectedMonth, selectedYear);
+
+        // c) Cargar Gastos
+        const startDate = new Date(selectedYear, selectedMonth, 1).toISOString();
+        const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).toISOString();
+        
+        let expenseQuery = supabase.from('expenses').select('*').gte('date', startDate).lte('date', endDate);
+        
+        if (profile?.studio_id) {
+            expenseQuery = expenseQuery.eq('studio_id', profile.studio_id);
+        } else {
+            // Si es independiente, filtramos por user_id
+            expenseQuery = expenseQuery.eq('user_id', user.id);
+        }
+        
+        const { data } = await expenseQuery;
+        setExpenses(data || []);
+    }
     setLoadingExpenses(false);
   };
 
   useEffect(() => { loadData(); }, [selectedMonth, selectedYear]);
 
-  // 2. DATA GRÁFICOS
-  const artistChartData = useMemo(() => {
-    const map: Record<string, number> = {};
+  // 3. CÁLCULOS INTELIGENTES
+  const financialData = useMemo(() => {
+    const totalGrossSales = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    let effectiveIncome = 0; // Lo que entra al bolsillo del usuario
+
+    if (userRole === 'independent') {
+        // CASO INDEPENDIENTE: No hay split, todo es ingreso.
+        effectiveIncome = totalGrossSales;
+    } else {
+        // CASO ESTUDIO: Calculamos split
+        effectiveIncome = works.reduce((sum, w) => {
+            const historicRate = w.snapshot_commission ?? w.artist_profile?.commission_percentage ?? 50;
+            const studioShare = 100 - historicRate;
+            return sum + (w.total_price * (studioShare / 100));
+        }, 0);
+    }
+
+    const netProfit = effectiveIncome - totalExpenses;
+
+    return { totalGrossSales, effectiveIncome, totalExpenses, netProfit };
+  }, [works, expenses, userRole]);
+
+  // Data Gráficos
+  const chartData = useMemo(() => {
+    // Gráfico Artistas (Solo para Owners)
+    const artistsMap: Record<string, number> = {};
     works.forEach(w => {
       const name = w.artist_profile?.name || 'Desconocido';
-      map[name] = (map[name] || 0) + (w.total_price || 0);
+      artistsMap[name] = (artistsMap[name] || 0) + (w.total_price || 0);
     });
-    return Object.entries(map).map(([name, total]) => ({ name: name.split(' ')[0], total }));
-  }, [works]);
+    const artistData = Object.entries(artistsMap).map(([name, total]) => ({ name: name.split(' ')[0], total }));
 
-  const salesTrendData = useMemo(() => {
+    // Gráfico Pulso (Para todos)
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const days = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, monto: 0 }));
     works.forEach((w: any) => {
@@ -91,29 +139,11 @@ export const Dashboard = () => {
         if (days[day - 1]) days[day - 1].monto += (w.total_price || 0);
       }
     });
-    return days;
+
+    return { artistData, salesTrend: days };
   }, [works, selectedMonth, selectedYear]);
 
-  const totalGrossSales = works.reduce((sum, w) => sum + (w.total_price || 0), 0);
-  
-  // 3. CÁLCULO DE UTILIDAD (Con Lógica Snapshot para evitar errores históricos)
-  const studioGross = works.reduce((sum, w) => {
-    // PRIORIDAD: 
-    // 1. Usar 'snapshot_commission' (histórico congelado en DB)
-    // 2. Si no existe, usar el perfil actual (w.artist_profile.commission_percentage)
-    // 3. Si todo falla, asumir 50%
-    const historicRate = w.snapshot_commission ?? w.artist_profile?.commission_percentage ?? 50;
-    
-    // Calculamos cuánto se queda el estudio (100% - % del Artista)
-    const studioShare = 100 - historicRate;
-    
-    return sum + (w.total_price * (studioShare / 100));
-  }, 0);
-
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const netProfit = studioGross - totalExpenses;
-
-  // Componente de nota
+  // Nota Contable Componente
   const AccountingNote = () => (
     <div className="mt-4 p-4 md:p-6 bg-[var(--brand-surface)]/30 border border-[var(--brand-border)] rounded-[2rem] w-full transition-all">
       <div className="flex items-start gap-3">
@@ -123,7 +153,7 @@ export const Dashboard = () => {
             Reporte para Contabilidad
           </p>
           <p className="text-[10px] md:text-xs text-[var(--brand-muted)] leading-relaxed font-medium opacity-60">
-            Este archivo exporta el balance detallado. Diseñado para tu contador.
+            Exporta el balance detallado de {MONTHS[selectedMonth]} para gestión externa.
           </p>
         </div>
       </div>
@@ -133,13 +163,17 @@ export const Dashboard = () => {
   return (
     <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-700 pb-32 text-left bg-[var(--brand-bg)] text-[var(--brand-primary)] min-h-screen">
       
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[var(--brand-border)] pb-6">
         <div>
-          <h1 className="text-4xl md:text-7xl font-black italic text-[var(--brand-primary)] uppercase tracking-tighter leading-none">Dashboard</h1>
+          <h1 className="text-4xl md:text-7xl font-black italic text-[var(--brand-primary)] uppercase tracking-tighter leading-none">
+            {userRole === 'independent' ? 'Mi Balance' : 'Dashboard'}
+          </h1>
           <p className="text-[9px] md:text-xs font-bold text-[var(--brand-muted)] opacity-50 uppercase tracking-[0.4em] mt-1">AXIS.ops Intelligence</p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 items-start md:items-center">
+          {/* Selector Tema */}
           <div className="flex bg-[var(--brand-surface)] border border-[var(--brand-border)] p-1 rounded-xl md:rounded-full gap-1">
             {THEMES.map((t) => (
               <button key={t.id} onClick={() => applyTheme(t.id)} className={`px-3 py-1.5 rounded-lg md:rounded-full text-[10px] font-black uppercase transition-all ${currentTheme === t.id ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'text-[var(--brand-muted)]'}`}>
@@ -147,6 +181,7 @@ export const Dashboard = () => {
               </button>
             ))}
           </div>
+          {/* Selector Fecha */}
           <div className="flex gap-2 bg-[var(--brand-surface)] p-1 rounded-xl border border-[var(--brand-border)] w-full sm:w-auto">
             <select className="bg-transparent text-[10px] font-black uppercase text-[var(--brand-primary)] px-2 py-1.5 outline-none flex-1" value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
               {MONTHS.map((m, i) => <option key={m} value={i} className="bg-black text-white">{m}</option>)}
@@ -158,11 +193,13 @@ export const Dashboard = () => {
         </div>
       </header>
 
-      {/* TABS MÓVILES */}
+      {/* TABS MÓVILES (Ocultamos 'Equipo' si es independiente) */}
       <div className="flex md:hidden bg-[var(--brand-surface)] border border-[var(--brand-border)] p-1 rounded-2xl overflow-hidden shadow-lg mb-6">
         <button onClick={() => setActiveTab('overview')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'overview' ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)] rounded-xl' : 'text-[var(--brand-muted)]'}`}>Datos</button>
         <button onClick={() => setActiveTab('charts')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'charts' ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)] rounded-xl' : 'text-[var(--brand-muted)]'}`}>Graficos</button>
-        <button onClick={() => setActiveTab('team')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'team' ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)] rounded-xl' : 'text-[var(--brand-muted)]'}`}>Equipo</button>
+        {userRole === 'owner' && (
+            <button onClick={() => setActiveTab('team')} className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'team' ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)] rounded-xl' : 'text-[var(--brand-muted)]'}`}>Equipo</button>
+        )}
       </div>
 
       {(loadingWorks || loadingExpenses) && works.length === 0 ? (
@@ -170,97 +207,124 @@ export const Dashboard = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
+          {/* === COLUMNA IZQUIERDA (PRINCIPAL) === */}
           <div className="lg:col-span-8 space-y-8">
+            
+            {/* --- SECCIÓN OVERVIEW --- */}
             <div className={`${activeTab === 'overview' ? 'block' : 'hidden md:block'} space-y-6`}>
+                {/* TARJETA GRANDE DE INGRESO */}
                 <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 md:p-8 rounded-[2.5rem] flex items-center justify-between group">
                   <div>
-                    <p className="text-[var(--brand-muted)] text-[10px] uppercase font-black tracking-[0.3em] mb-1">Ventas Brutas</p>
+                    <p className="text-[var(--brand-muted)] text-[10px] uppercase font-black tracking-[0.3em] mb-1">
+                        {userRole === 'independent' ? 'Ingresos Totales' : 'Ventas Brutas'}
+                    </p>
                     <p className="text-3xl md:text-6xl font-black font-mono text-[var(--brand-primary)] tracking-tighter italic leading-none">
-                      {formatterCOP.format(totalGrossSales)}
+                      {formatterCOP.format(financialData.totalGrossSales)}
                     </p>
                   </div>
                   <div className="h-12 w-12 bg-[var(--brand-accent)]/10 rounded-full flex items-center justify-center text-xl">⚡</div>
                 </div>
 
+                {/* Tarjetas Pequeñas Móvil (Solo visibles en celular) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:hidden gap-4">
-                    <div className={`p-8 rounded-[2.5rem] ${netProfit >= 0 ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'bg-red-500 text-white'}`}>
+                    <div className={`p-8 rounded-[2.5rem] ${financialData.netProfit >= 0 ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'bg-red-500 text-white'}`}>
                         <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Utilidad Neta</p>
-                        <h3 className="text-2xl font-black mt-1 font-mono">{formatterCOP.format(netProfit)}</h3>
+                        <h3 className="text-2xl font-black mt-1 font-mono">{formatterCOP.format(financialData.netProfit)}</h3>
                     </div>
-                    <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-8 rounded-[2.5rem]">
-                        <p className="text-[var(--brand-accent)] text-[9px] font-black uppercase">Estudio Gross</p>
-                        <p className="text-2xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(studioGross)}</p>
-                    </div>
+                    {/* Solo mostramos Studio Gross si es Owner en móvil */}
+                    {userRole === 'owner' && (
+                      <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-8 rounded-[2.5rem]">
+                          <p className="text-[var(--brand-accent)] text-[9px] font-black uppercase">Estudio Gross</p>
+                          <p className="text-2xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(financialData.effectiveIncome)}</p>
+                      </div>
+                    )}
                 </div>
             </div>
 
-            <div className={`${activeTab === 'charts' ? 'block' : 'hidden md:block'} grid grid-cols-1 md:grid-cols-2 gap-6`}>
+            {/* --- SECCIÓN CHARTS --- */}
+            <div className={`${activeTab === 'charts' ? 'block' : 'hidden md:block'} grid grid-cols-1 ${userRole === 'owner' ? 'md:grid-cols-2' : 'md:grid-cols-1'} gap-6`}>
+                
+                {/* Gráfico de Artistas (SOLO OWNER) */}
+                {userRole === 'owner' && (
+                    <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2.5rem]">
+                        <h3 className="text-[10px] font-black text-[var(--brand-muted)] uppercase tracking-widest mb-6 italic">Rendimiento Equipo</h3>
+                        <div className="h-48 md:h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData.artistData}>
+                                <XAxis dataKey="name" hide />
+                                <Tooltip 
+                                contentStyle={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, borderRadius: '16px', color: themeColors.primary }}
+                                itemStyle={{ color: themeColors.primary }}
+                                />
+                                <Bar dataKey="total" fill={themeColors.accent} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                )}
+
+                {/* Gráfico de Pulso (PARA TODOS - Full width si es independiente) */}
                 <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2.5rem]">
-                  <h3 className="text-[10px] font-black text-[var(--brand-muted)] uppercase tracking-widest mb-6 italic">Artistas</h3>
+                  <h3 className="text-[10px] font-black text-[var(--brand-muted)] uppercase tracking-widest mb-6 italic">Pulso de Ventas</h3>
                   <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={artistChartData}>
-                        <XAxis dataKey="name" hide />
-                        <Tooltip 
-                          contentStyle={{
-                            backgroundColor: themeColors.surface, 
-                            borderColor: themeColors.border, 
-                            borderRadius: '16px',
-                            color: themeColors.primary
-                          }}
-                          itemStyle={{ color: themeColors.primary }}
-                        />
-                        <Bar dataKey="total" fill={themeColors.accent} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2.5rem]">
-                  <h3 className="text-[10px] font-black text-[var(--brand-muted)] uppercase tracking-widest mb-6 italic">Pulso</h3>
-                  <div className="h-48 md:h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={salesTrendData}>
+                      <LineChart data={chartData.salesTrend}>
                         <CartesianGrid stroke={themeColors.border} vertical={false} opacity={0.3} />
                         <XAxis dataKey="day" hide />
                         <Tooltip 
-                          contentStyle={{
-                            backgroundColor: themeColors.surface, 
-                            borderColor: themeColors.border, 
-                            borderRadius: '16px',
-                            color: themeColors.primary
-                          }}
+                          contentStyle={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, borderRadius: '16px', color: themeColors.primary }}
                         />
-                        <Line type="monotone" dataKey="monto" stroke={themeColors.primary} strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="monto" stroke={themeColors.primary} strokeWidth={3} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
             </div>
 
-            <div className={`${activeTab === 'team' ? 'block' : 'hidden md:block'}`}>
-              <section className="bg-[var(--brand-surface)]/20 border border-[var(--brand-border)] p-4 md:p-8 rounded-[3rem]">
-                <Stats works={works} />
-              </section>
-            </div>
+            {/* --- SECCIÓN TEAM STATS (SOLO OWNER) --- */}
+            {userRole === 'owner' && (
+                <div className={`${activeTab === 'team' ? 'block' : 'hidden md:block'}`}>
+                <section className="bg-[var(--brand-surface)]/20 border border-[var(--brand-border)] p-4 md:p-8 rounded-[3rem]">
+                    <Stats works={works} />
+                </section>
+                </div>
+            )}
           </div>
 
+          {/* --- BARRA LATERAL DERECHA (KPIs) --- */}
           <aside className="hidden lg:block lg:col-span-4 space-y-6 lg:sticky lg:top-8">
-            <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] ${netProfit >= 0 ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'bg-red-500 text-white'}`}>
+            {/* TARJETA 1: UTILIDAD NETA (IMPORTANTE) */}
+            <section className={`p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[260px] ${financialData.netProfit >= 0 ? 'bg-[var(--brand-primary)] text-[var(--brand-bg)]' : 'bg-red-500 text-white'}`}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Utilidad Operativa Neta</p>
-                <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">{formatterCOP.format(netProfit)}</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+                    {userRole === 'independent' ? 'Ganancia Neta (Bolsillo)' : 'Utilidad Operativa'}
+                </p>
+                <h3 className="text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none mt-4">{formatterCOP.format(financialData.netProfit)}</h3>
               </div>
+              <p className="text-[9px] font-bold uppercase tracking-widest opacity-50 mt-4">
+                  {userRole === 'independent' ? 'Disponible tras gastos' : 'Caja final estudio'}
+              </p>
             </section>
+            
             <div className="space-y-4">
+              {/* TARJETA 2: ESTUDIO GROSS (SOLO OWNER) */}
+              {/* Para independientes, esto sería redundante con Ingresos Totales, así que lo ocultamos */}
+              {userRole === 'owner' && (
+                  <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2rem]">
+                    <p className="text-[var(--brand-accent)] text-[9px] uppercase font-black mb-1 opacity-60">
+                        Estudio Gross
+                    </p>
+                    <p className="text-xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(financialData.effectiveIncome)}</p>
+                  </div>
+              )}
+
+              {/* TARJETA 3: GASTOS (PARA TODOS) */}
               <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2rem]">
-                <p className="text-[var(--brand-accent)] text-[9px] uppercase font-black mb-1 opacity-60">Estudio Gross</p>
-                <p className="text-xl font-black font-mono text-[var(--brand-accent)]">{formatterCOP.format(studioGross)}</p>
-              </div>
-              <div className="bg-[var(--brand-surface)] border border-[var(--brand-border)] p-6 rounded-[2rem]">
-                <p className="text-red-500 text-[9px] uppercase font-black mb-1 opacity-60">Gastos Totales</p>
-                <p className="text-xl font-black font-mono text-red-500">{formatterCOP.format(totalExpenses)}</p>
+                <p className="text-red-500 text-[9px] uppercase font-black mb-1 opacity-60">Gastos Registrados</p>
+                <p className="text-xl font-black font-mono text-red-500">{formatterCOP.format(financialData.totalExpenses)}</p>
               </div>
             </div>
+            
             <button onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)} className="w-full bg-[var(--brand-primary)] text-[var(--brand-bg)] py-6 rounded-[2.5rem] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl hover:opacity-90">
                 📊 EXPORTAR CSV
             </button>
@@ -268,11 +332,11 @@ export const Dashboard = () => {
             <AccountingNote />
           </aside>
 
+          {/* Botones Móvil */}
           <div className="lg:hidden w-full mt-4 flex flex-col gap-4">
              <button onClick={() => generateAccountingReport(works, expenses, MONTHS[selectedMonth], selectedYear)} className="w-full bg-[var(--brand-primary)] text-[var(--brand-bg)] py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.3em]">
-                📊 EXPORTAR AXIS.ops CSV
+                📊 EXPORTAR CSV
             </button>
-            
             <AccountingNote />
           </div>
         </div>

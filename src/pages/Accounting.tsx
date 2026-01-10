@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccounting } from '../hooks/useAccounting';
 import { formatterCOP } from '../lib/formatterCOP';
+import { supabase } from '../lib/supabase'; // Necesario para verificar rol
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -13,36 +14,59 @@ export const Accounting = () => {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
   
   const { fetchWorks, works, loading: loadingWorks } = useAccounting();
 
-  const loadData = async () => {
-    // Solo cargamos los trabajos, eliminamos la lógica de gastos (expenses)
-    await fetchWorks(selectedMonth, selectedYear);
-  };
-
+  // 1. CARGA DE DATOS Y ROL
   useEffect(() => {
-    loadData();
+    const init = async () => {
+      // a) Detectar Rol
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('type')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        // Si es owner, es owner. Todo lo demás (null, independent, residente) lo tratamos como independiente para la vista de ingresos.
+        setUserRole(profile?.type === 'owner' ? 'owner' : 'independent');
+      }
+
+      // b) Cargar Trabajos
+      await fetchWorks(selectedMonth, selectedYear);
+    };
+
+    init();
   }, [selectedMonth, selectedYear]);
 
-  // Cálculo del ingreso que queda para el estudio
-  const totalStudioGross = works.reduce((sum, w) => {
-    const artistCommission = w.artist_profile?.commission_percentage || 50;
-    const studioPercentage = (100 - artistCommission) / 100;
-    return sum + (w.total_price * studioPercentage);
-  }, 0);
+  // 2. CÁLCULO INTELIGENTE DEL DINERO
+  const totalIncome = useMemo(() => {
+    return works.reduce((sum, w) => {
+      // LÓGICA ARTISTA INDEPENDIENTE: El 100% es tuyo
+      if (userRole === 'independent') {
+        return sum + w.total_price;
+      }
+      
+      // LÓGICA ESTUDIO: Calculamos solo el porcentaje del estudio
+      const artistCommission = w.artist_profile?.commission_percentage || 50;
+      const studioPercentage = (100 - artistCommission) / 100;
+      return sum + (w.total_price * studioPercentage);
+    }, 0);
+  }, [works, userRole]);
 
   return (
     <div className="w-full max-w-[1400px] mx-auto min-h-screen animate-in fade-in duration-700 pb-24 px-4 md:px-10">
       
-      {/* HEADER ESTRUCTO */}
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 py-10 mb-10 text-left">
         <div>
           <h2 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-none">
-            Ingresos
+            {userRole === 'independent' ? 'Mis Ingresos' : 'Facturación'}
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">
-            ESTRUCTO • Business Intelligence
+            AXIS.ops • Business Intelligence
           </p>
         </div>
 
@@ -95,20 +119,36 @@ export const Accounting = () => {
                     className="w-full bg-zinc-900/30 border border-zinc-900 p-6 rounded-[2.5rem] flex justify-between items-center group hover:bg-zinc-900/60 transition-all duration-300"
                   >
                     <div className="text-left flex items-center gap-5">
-                      <div className="h-12 w-12 bg-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600 group-hover:bg-white group-hover:text-black transition-all duration-500 uppercase italic">
-                        {work.artist_profile?.name.substring(0, 2)}
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black transition-all duration-500 uppercase italic ${
+                          userRole === 'independent' 
+                            ? 'bg-emerald-900/20 text-emerald-500' // Verde para independientes
+                            : 'bg-zinc-800 text-zinc-600 group-hover:bg-white group-hover:text-black'
+                      }`}>
+                        {/* Si es independiente mostramos inicial del CLIENTE, si es estudio inicial del ARTISTA */}
+                        {userRole === 'independent' 
+                            ? work.client_name.substring(0, 2) 
+                            : work.artist_profile?.name.substring(0, 2)
+                        }
                       </div>
                       <div>
-                        <p className="text-white font-black uppercase italic text-lg tracking-tighter leading-none group-hover:text-emerald-400">
-                          {work.artist_profile?.name || 'Artista'}
+                        <p className={`font-black uppercase italic text-lg tracking-tighter leading-none ${
+                            userRole === 'independent' ? 'text-emerald-100' : 'text-white'
+                        }`}>
+                          {/* Si es independiente mostramos el CLIENTE como título principal */}
+                          {userRole === 'independent' 
+                            ? work.client_name 
+                            : (work.artist_profile?.name || 'Artista')
+                          }
                         </p>
                         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                          {work.client_name} • {new Date(work.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}
+                          {userRole === 'independent' ? 'Cliente' : work.client_name} • {new Date(work.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long' })}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-black text-zinc-200 font-mono tracking-tighter">
+                      <p className={`text-xl font-black font-mono tracking-tighter ${
+                          userRole === 'independent' ? 'text-emerald-400' : 'text-zinc-200'
+                      }`}>
                         {formatterCOP.format(work.total_price)}
                       </p>
                     </div>
@@ -119,26 +159,34 @@ export const Accounting = () => {
           )}
         </section>
 
-        {/* MÉTRICAS DE ESTUDIO */}
+        {/* MÉTRICAS (DERECHA) */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28 space-y-6">
             
-            <section className="bg-white p-8 md:p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[220px]">
+            <section className={`p-8 md:p-10 rounded-[3.5rem] shadow-2xl flex flex-col justify-between min-h-[220px] ${
+                userRole === 'independent' 
+                    ? 'bg-emerald-500 text-black' // Estilo verde vibrante para artistas
+                    : 'bg-white text-black' // Estilo blanco sobrio para estudios
+            }`}>
               <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 mb-3">Bruto Estudio Acumulado</p>
-                <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black text-black tabular-nums tracking-tighter leading-none break-all">
-                  {formatterCOP.format(totalStudioGross)}
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-3">
+                    {userRole === 'independent' ? 'Ingreso Total Personal' : 'Bruto Estudio Acumulado'}
+                </p>
+                <h3 className="text-3xl sm:text-4xl xl:text-5xl font-black tabular-nums tracking-tighter leading-none break-all">
+                  {formatterCOP.format(totalIncome)}
                 </h3>
               </div>
-              <p className="text-[9px] font-bold text-black/30 uppercase tracking-widest italic text-left mt-8">
-                Cálculo automático basado en comisiones.
+              <p className="text-[9px] font-bold opacity-50 uppercase tracking-widest italic text-left mt-8">
+                {userRole === 'independent' 
+                    ? '100% de tus ingresos sin descuentos.' 
+                    : 'Cálculo post-comisiones de artistas.'}
               </p>
             </section>
 
             <div className="bg-zinc-900/30 border border-zinc-800 p-8 rounded-[2.5rem] text-left">
               <p className="text-zinc-600 text-[9px] font-black uppercase tracking-widest mb-1 italic">Gestión de Periodos</p>
               <p className="text-zinc-500 text-[10px] leading-relaxed">
-                Selecciona el mes para revisar la liquidación histórica. Los cambios realizados aquí afectan directamente al Dashboard global de ESTRUCTO.
+                Visualizando datos de {MONTHS[selectedMonth]} {selectedYear}.
               </p>
             </div>
           </div>

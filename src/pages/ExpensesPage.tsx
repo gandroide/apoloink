@@ -16,6 +16,11 @@ export const ExpensesPage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Nuevo estado para controlar identidad
+  const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [studioId, setStudioId] = useState<string | null>(null);
+  
   // Estados para el formulario
   const [editingId, setEditingId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
@@ -39,24 +44,54 @@ export const ExpensesPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchExpenses = async () => {
+  // 1. CARGA DE DATOS Y ROL
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      setUserId(user.id);
+
+      // Obtener perfil
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('studio_id, type')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      setStudioId(profile?.studio_id || null);
+      
+      const role = (profile?.type === 'owner') ? 'owner' : 'independent';
+      setUserRole(role);
+
+      // Construir Query
+      let query = supabase
         .from('expenses')
         .select('*')
         .order('date', { ascending: false });
+
+      // Filtro inteligente
+      if (role === 'independent') {
+        // Si es independiente, busca por user_id
+        query = query.eq('user_id', user.id);
+      } else if (profile?.studio_id) {
+        // Si es dueño, busca por studio_id
+        query = query.eq('studio_id', profile.studio_id);
+      }
+
+      const { data, error } = await query;
       
       if (error) throw error;
       setExpenses(data || []);
     } catch (err) {
-      console.error("Error cargando gastos en AXIS.ops:", err);
+      console.error("Error cargando gastos:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchExpenses(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const startEdit = (expense: Expense) => {
     setEditingId(expense.id);
@@ -81,11 +116,17 @@ export const ExpensesPage = () => {
 
     setIsSaving(true);
     try {
+      // Preparamos los datos
       const expenseData = {
         description,
         amount: parseFloat(amount),
         category,
-        date: `${expenseDate}T12:00:00Z`
+        date: `${expenseDate}T12:00:00Z`,
+        // LÓGICA CLAVE:
+        // Si soy independiente -> user_id = MI ID, studio_id = NULL
+        // Si soy dueño -> user_id = MI ID, studio_id = STUDIO ID
+        user_id: userId,
+        studio_id: userRole === 'owner' ? studioId : null
       };
 
       let error;
@@ -106,10 +147,10 @@ export const ExpensesPage = () => {
       if (error) throw error;
 
       cancelEdit();
-      await fetchExpenses();
-    } catch (err) {
+      await fetchData(); // Recargar lista
+    } catch (err: any) {
       console.error("Error al guardar gasto:", err);
-      alert("Error guardando el gasto. Revisa la consola.");
+      alert("Error: " + (err.message || "No se pudo guardar"));
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +168,7 @@ export const ExpensesPage = () => {
             Gastos<span className="text-red-600">.</span>
           </h2>
           <p className="text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.4em] mt-4 ml-1">
-            AXIS.ops • Control de Egresos
+            {userRole === 'independent' ? 'Mis Egresos' : 'Control de Estudio'}
           </p>
         </div>
         
@@ -155,7 +196,7 @@ export const ExpensesPage = () => {
 
           {loading ? (
             <div className="py-20 text-center animate-pulse text-zinc-800 text-xs font-black uppercase tracking-[0.5em]">
-              Sincronizando AXIS.ops...
+              Cargando registros...
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -208,7 +249,6 @@ export const ExpensesPage = () => {
         {/* FORMULARIO */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28">
-            {/* CORRECCIÓN: Eliminado 'overflow-hidden' para permitir que el dropdown sobresalga */}
             <section className={`bg-zinc-900 border ${editingId ? 'border-red-500/50' : 'border-zinc-800'} p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative transition-colors duration-500`}>
               
               <div className="text-left relative flex justify-between items-start">
@@ -233,7 +273,7 @@ export const ExpensesPage = () => {
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Descripción</label>
                   <input 
                     className="w-full bg-black border border-zinc-800 p-5 rounded-2xl text-sm focus:border-red-900/50 outline-none transition-all text-white font-bold"
-                    placeholder="Ej: Insumos de limpieza"
+                    placeholder={userRole === 'independent' ? "Ej: Tintas, Agujas..." : "Ej: Alquiler Local"}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     required
@@ -265,17 +305,15 @@ export const ExpensesPage = () => {
                   </div>
                 </div>
 
-                {/* --- CUSTOM DROPDOWN (Con Z-Index alto) --- */}
+                {/* --- CUSTOM DROPDOWN --- */}
                 <div className="space-y-2 relative z-50" ref={dropdownRef}>
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Categoría</label>
                   
-                  {/* Botón Trigger */}
                   <div 
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     className={`w-full bg-black border ${isDropdownOpen ? 'border-white' : 'border-zinc-800'} p-5 rounded-2xl text-[10px] font-black uppercase text-white outline-none cursor-pointer flex justify-between items-center transition-all hover:border-zinc-600`}
                   >
                     <span>{category}</span>
-                    {/* Flecha animada */}
                     <svg 
                         className={`w-3 h-3 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} 
                         fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -284,7 +322,6 @@ export const ExpensesPage = () => {
                     </svg>
                   </div>
 
-                  {/* Lista Desplegable */}
                   {isDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto">
                       {CATEGORIES.map((cat) => (
@@ -305,7 +342,6 @@ export const ExpensesPage = () => {
 
                 <button 
                   disabled={isSaving}
-                  // CORRECCIÓN: Z-Index bajo para que no tape al dropdown
                   className={`w-full py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 relative z-0 ${
                     editingId 
                       ? 'bg-red-600 text-white hover:bg-red-500' 

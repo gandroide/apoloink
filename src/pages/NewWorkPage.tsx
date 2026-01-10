@@ -6,6 +6,8 @@ export const NewWorkPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [artists, setArtists] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<'owner' | 'independent' | null>(null);
+  const [currentUserName, setCurrentUserName] = useState('');
   
   // Estados para el Custom Dropdown
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -30,67 +32,77 @@ export const NewWorkPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 1. CARGA DE DATOS
+  // 1. CARGA DE DATOS Y DETECCIÓN DE ROL
   useEffect(() => {
-    const fetchArtists = async () => {
+    const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('studio_id')
+        .select('studio_id, type, name')
         .eq('id', user.id)
         .maybeSingle(); 
 
-      if (profile?.studio_id) {
-        // FILTRO ACTUALIZADO: Solo traemos 'residente' (Artistas)
-        // Ignoramos a los 'owner' (Dueños)
-        const { data: artistsData } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .eq('studio_id', profile.studio_id)
-          .eq('is_active', true)
-          .eq('type', 'residente'); // <--- AQUI ESTÁ EL FILTRO MÁGICO
-
-        setArtists(artistsData || []);
+      if (profile?.type === 'owner') {
+          setUserRole('owner');
+          
+          if (profile.studio_id) {
+              const { data: artistsData } = await supabase
+                .from('profiles')
+                .select('id, name')
+                .eq('studio_id', profile.studio_id)
+                .eq('is_active', true)
+                .eq('type', 'residente')
+                .order('name');
+              setArtists(artistsData || []);
+          }
+      } else {
+          setUserRole('independent');
+          setCurrentUserName(profile?.name || 'Mí mismo');
+          setFormData(prev => ({ ...prev, artist_id: user.id }));
       }
     };
-    fetchArtists();
+    fetchData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!formData.artist_id) {
-        alert("Por favor selecciona un artista");
+        alert("Error: No se ha identificado el artista. Recarga la página.");
         return;
     }
     setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
       const { data: profile } = await supabase
         .from('profiles')
         .select('studio_id')
         .eq('id', user?.id)
         .maybeSingle();
 
-      if (!profile?.studio_id) throw new Error("Error de identidad.");
+      const studioIdToSave = profile?.studio_id || null;
 
+      // CORRECCIÓN: Eliminé la línea "description: '...'" que causaba el error
       const { error } = await supabase.from('artist_works').insert([{
         artist_id: formData.artist_id,
         client_name: formData.client_name,
         total_price: parseFloat(formData.total_price),
         created_at: `${formData.date}T12:00:00Z`,
-        studio_id: profile.studio_id 
+        studio_id: studioIdToSave
       }]);
 
       if (!error) {
         navigate('/accounting');
       } else {
-        throw error;
+        throw error; // Esto capturará errores de Supabase
       }
     } catch (error: any) {
-      alert("Error: " + error.message);
+      console.error("Error completo:", error); // Ver en consola para detalles
+      alert("Error al guardar: " + (error.message || error.details || "Error desconocido"));
     } finally {
       setLoading(false);
     }
@@ -132,54 +144,56 @@ export const NewWorkPage = () => {
         {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="space-y-6 bg-zinc-900/20 p-6 md:p-10 rounded-[2.5rem] border border-zinc-900/50 shadow-2xl relative">
           
-          {/* --- CUSTOM DROPDOWN --- */}
-          <div className="space-y-2 relative" ref={dropdownRef}>
-            <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">
-              Talento Responsable
-            </label>
-            
-            {/* Botón que parece input */}
-            <div 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className={`w-full bg-black border ${isDropdownOpen ? 'border-white' : 'border-zinc-800'} p-5 rounded-2xl text-white font-bold cursor-pointer flex justify-between items-center transition-all hover:border-zinc-600`}
-            >
-                <span className={selectedArtistName ? "text-white" : "text-zinc-500"}>
-                    {selectedArtistName || "Seleccionar Artista..."}
-                </span>
-                {/* Flecha animada */}
-                <svg 
-                    className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} 
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          {/* --- ZONA DE ARTISTA (CONDICIONAL) --- */}
+          {userRole === 'owner' ? (
+              <div className="space-y-2 relative" ref={dropdownRef}>
+                <label className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em] ml-2 italic">
+                  Talento Responsable
+                </label>
+                <div 
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className={`w-full bg-black border ${isDropdownOpen ? 'border-white' : 'border-zinc-800'} p-5 rounded-2xl text-white font-bold cursor-pointer flex justify-between items-center transition-all hover:border-zinc-600`}
                 >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-
-            {/* Lista Desplegable (Flotante y Posicionada) */}
-            {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
-                    {artists.length > 0 ? (
-                        artists.map((artist) => (
-                            <div 
-                                key={artist.id}
-                                onClick={() => {
-                                    setFormData({...formData, artist_id: artist.id});
-                                    setSelectedArtistName(artist.name);
-                                    setIsDropdownOpen(false);
-                                }}
-                                className="p-4 hover:bg-zinc-900 text-white font-bold cursor-pointer transition-colors text-sm uppercase tracking-wider border-b border-zinc-900 last:border-0"
-                            >
-                                {artist.name}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="p-4 text-center text-zinc-600 text-xs uppercase font-bold">
-                            No hay artistas disponibles
-                        </div>
-                    )}
+                    <span className={selectedArtistName ? "text-white" : "text-zinc-500"}>
+                        {selectedArtistName || "Seleccionar Artista..."}
+                    </span>
+                    <svg className={`w-4 h-4 text-zinc-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </div>
-            )}
-          </div>
+                {isDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto">
+                        {artists.length > 0 ? (
+                            artists.map((artist) => (
+                                <div 
+                                    key={artist.id}
+                                    onClick={() => {
+                                        setFormData({...formData, artist_id: artist.id});
+                                        setSelectedArtistName(artist.name);
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="p-4 hover:bg-zinc-900 text-white font-bold cursor-pointer transition-colors text-sm uppercase tracking-wider border-b border-zinc-900 last:border-0"
+                                >
+                                    {artist.name}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-zinc-600 text-xs uppercase font-bold">No hay artistas activos</div>
+                        )}
+                    </div>
+                )}
+              </div>
+          ) : (
+              <div className="space-y-2">
+                  <label className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] ml-2 italic">
+                    Artista (Tú)
+                  </label>
+                  <div className="w-full bg-emerald-900/10 border border-emerald-900/30 p-5 rounded-2xl text-emerald-500 font-bold flex items-center gap-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      {currentUserName || 'Cargando perfil...'}
+                  </div>
+              </div>
+          )}
 
           {/* INPUT CLIENTE */}
           <div className="space-y-2">
@@ -220,7 +234,7 @@ export const NewWorkPage = () => {
 
           <div className="pt-4">
             <button 
-              disabled={loading || artists.length === 0}
+              disabled={loading || !formData.artist_id}
               className="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] hover:bg-zinc-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Guardando...' : 'Confirmar'}
