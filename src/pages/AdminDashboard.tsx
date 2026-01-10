@@ -39,7 +39,7 @@ const Icons = {
   Money: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
   Crown: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
   UserPlus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>,
-  CheckBadge: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>,
+  CheckBadge: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>,
   Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
   Alert: () => <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
   Phone: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>,
@@ -61,12 +61,17 @@ export const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [showNewAdminModal, setShowNewAdminModal] = useState(false);
   
-  // ESTADO NUEVO: FILTRO DE USUARIOS
+  // FILTROS
   const [userFilter, setUserFilter] = useState<'all' | 'owner' | 'independent'>('all');
 
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // MODALES
+  const [showDeleteModal, setShowDeleteModal] = useState(false); // Para estudios
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false); // Para usuarios
   const [showPromoteModal, setShowPromoteModal] = useState(false);
+  
+  // ITEMS A MODIFICAR
   const [userToPromote, setUserToPromote] = useState<any | null>(null);
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const navigate = useNavigate();
@@ -158,6 +163,28 @@ export const AdminDashboard = () => {
     setIsUpdating(false);
   };
 
+  // --- LOGICA DE ELIMINAR USUARIOS ---
+  const requestDeleteUser = (user: any) => {
+    setUserToDelete(user);
+    setShowDeleteUserModal(true);
+  };
+
+  const executeDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsUpdating(true);
+    const { error } = await supabase.rpc('delete_user_completely', { target_user_id: userToDelete.id });
+    
+    if (error) {
+        alert("Error al eliminar usuario: " + error.message);
+    } else {
+        const updatedUsers = users.filter(u => u.id !== userToDelete.id);
+        setUsers(updatedUsers);
+        setShowDeleteUserModal(false);
+        setUserToDelete(null);
+    }
+    setIsUpdating(false);
+  };
+
   const requestPromoteUser = (user: any) => {
     setUserToPromote(user);
     setShowPromoteModal(true);
@@ -177,7 +204,7 @@ export const AdminDashboard = () => {
     setIsUpdating(false);
   };
 
-  // --- LOGICA DE FILTRADO MEJORADA ---
+  // --- LOGICA DE FILTRADO ---
   const filteredStudios = studios.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     s.id.includes(searchTerm)
@@ -189,7 +216,6 @@ export const AdminDashboard = () => {
     u.id.includes(searchTerm)
   );
 
-  // APLICAMOS EL FILTRO DE ROL
   if (userFilter === 'owner') {
       filteredUsers = filteredUsers.filter(u => u.type === 'owner');
   } else if (userFilter === 'independent') {
@@ -261,7 +287,7 @@ export const AdminDashboard = () => {
             <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-zinc-900/40 shrink-0">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">{currentView === 'studios' ? 'Listado de Estudios' : 'Listado de Usuarios'}</h3>
                 
-                {/* --- AQUÍ ESTÁN LOS BOTONES DE FILTRO NUEVOS --- */}
+                {/* --- FILTROS --- */}
                 {currentView === 'users' && (
                     <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800">
                         <button onClick={() => setUserFilter('all')} className={`px-3 py-1 rounded text-[10px] font-bold uppercase transition-all ${userFilter === 'all' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>Todos</button>
@@ -280,7 +306,7 @@ export const AdminDashboard = () => {
                               <>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest w-12">#</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Nombre</th>
-                                <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Moneda</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Moneda (Dueño)</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Email / Contacto</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Plan</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Estado</th>
@@ -292,7 +318,7 @@ export const AdminDashboard = () => {
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Moneda</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Fecha Registro</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Rol</th>
-                                <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">ID Usuario</th>
+                                <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Email</th>
                                 <th className="py-3 px-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-right">Acciones</th>
                               </>
                            )}
@@ -338,11 +364,26 @@ export const AdminDashboard = () => {
                                                     : <span className="text-blue-400 font-black uppercase text-[9px]">Dueño Estudio</span>
                                             }
                                         </td>
-                                        <td className="py-3 px-4 font-mono text-zinc-600 select-all max-w-[150px] truncate" title={user.id}>{user.id}</td>
+                                        {/* AQUI ESTA EL CAMBIO: EMAIL EN VEZ DE ID */}
+                                        <td className="py-3 px-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-zinc-500"><Icons.Mail /></span>
+                                                <span className="font-mono text-zinc-300 text-xs">{user.email}</span>
+                                            </div>
+                                        </td>
+                                        
                                         <td className="py-3 px-4 text-right flex justify-end gap-2">
+                                            
                                             <button onClick={() => setSelectedUser(user)} className="text-zinc-400 hover:text-white font-bold uppercase text-[9px] border border-zinc-700 px-3 py-1.5 rounded hover:bg-zinc-800 transition-all flex items-center gap-1">
                                                 <Icons.Eye /> Ver
                                             </button>
+                                            
+                                            {!user.is_super_admin && (
+                                                <button onClick={() => requestDeleteUser(user)} className="text-red-500 hover:text-red-400 font-bold uppercase text-[9px] border border-red-900/30 px-3 py-1.5 rounded hover:bg-red-900/20 transition-all flex items-center gap-1">
+                                                    <Icons.Trash />
+                                                </button>
+                                            )}
+
                                             {!user.is_super_admin && (
                                                 <button onClick={() => requestPromoteUser(user)} className="text-yellow-600 hover:text-yellow-400 font-bold uppercase text-[9px] border border-yellow-900/30 px-3 py-1.5 rounded hover:bg-yellow-900/20 transition-all flex items-center gap-1">
                                                     <Icons.Crown />
@@ -369,11 +410,11 @@ export const AdminDashboard = () => {
         </div>
       </main>
 
-      {/* ... MODALES ... (Son los mismos de antes, se mantienen igual) */}
+      {/* MODAL GESTIÓN ESTUDIO (Mismo de antes) */}
       {selectedStudio && !showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-                {/* CONTENIDO DEL MODAL ESTUDIO (Igual al anterior) */}
+                {/* ... Contenido del modal estudio ... */}
                 <div className="flex justify-between items-start mb-6"><div><h3 className="text-lg font-bold text-white">Gestionar Estudio</h3><p className="text-xs text-zinc-500 mt-1">{selectedStudio.name}</p></div><button onClick={() => setSelectedStudio(null)} className="text-zinc-500 hover:text-white"><Icons.Close /></button></div>
                 <div className="space-y-4 overflow-y-auto pr-2">
                     <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 space-y-3">
@@ -433,6 +474,25 @@ export const AdminDashboard = () => {
                 <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">¿Eliminar Definitivamente?</h3>
                 <p className="text-xs text-zinc-400 mb-6 leading-relaxed">Estás a punto de borrar el estudio <strong className="text-white">{selectedStudio.name}</strong> y todos sus datos.<br /><br /><span className="text-red-400 font-bold uppercase">Esta acción es irreversible.</span></p>
                 <div className="flex flex-col gap-3"><button onClick={executeDeleteStudio} disabled={isUpdating} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase rounded-lg tracking-widest transition-all shadow-lg shadow-red-900/20">{isUpdating ? 'Eliminando...' : 'Sí, Eliminar Todo'}</button><button onClick={() => setShowDeleteModal(false)} disabled={isUpdating} className="w-full py-3 bg-transparent hover:bg-zinc-900 text-zinc-500 hover:text-white font-bold uppercase rounded-lg tracking-widest transition-all">Cancelar</button></div>
+            </div>
+        </div>
+      )}
+
+      {/* --- NUEVO: MODAL ELIMINAR USUARIO --- */}
+      {showDeleteUserModal && userToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-zinc-950 border-2 border-red-900 rounded-2xl w-full max-w-sm p-6 shadow-[0_0_50px_rgba(220,38,38,0.2)] animate-in zoom-in-95 duration-200 text-center">
+                <div className="mx-auto h-16 w-16 bg-red-950/50 rounded-full flex items-center justify-center mb-4 text-red-500 animate-pulse"><Icons.Alert /></div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">¿Expulsar Usuario?</h3>
+                <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+                    Vas a eliminar a <strong className="text-white">{userToDelete.name || userToDelete.email}</strong>.<br />
+                    Esto borrará su acceso y todos sus datos personales.
+                    <br /><br /><span className="text-red-400 font-bold uppercase">Esta acción es irreversible.</span>
+                </p>
+                <div className="flex flex-col gap-3">
+                    <button onClick={executeDeleteUser} disabled={isUpdating} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold uppercase rounded-lg tracking-widest transition-all shadow-lg shadow-red-900/20">{isUpdating ? 'Eliminando...' : 'Sí, Eliminar Usuario'}</button>
+                    <button onClick={() => setShowDeleteUserModal(false)} disabled={isUpdating} className="w-full py-3 bg-transparent hover:bg-zinc-900 text-zinc-500 hover:text-white font-bold uppercase rounded-lg tracking-widest transition-all">Cancelar</button>
+                </div>
             </div>
         </div>
       )}
