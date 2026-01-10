@@ -27,37 +27,29 @@ export const OnboardingPage = () => {
     navigate('/login');
   };
 
-  // Paso 2: Creación en Base de Datos (CON SUSCRIPCIÓN)
+  // Paso 2: Creación en Base de Datos
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !user || !accountType) return;
 
     setLoading(true);
     try {
-      // ---------------------------------------------------------
-      // 1. IDENTIFICAR QUÉ PLAN LE TOCA
-      // ---------------------------------------------------------
+      // 1. OBTENER EL PLAN (Si falla, usamos null para no bloquear el registro)
       const planCodname = accountType === 'business' ? 'studio_pro' : 'freelance_basic';
-      
-      const { data: planData, error: planError } = await supabase
+      const { data: planData } = await supabase
         .from('plans')
         .select('id')
         .eq('codname', planCodname)
-        .single();
+        .maybeSingle();
 
-      if (planError || !planData) {
-        throw new Error('No pudimos encontrar el plan de suscripción. Contacta soporte.');
-      }
-
-      // ---------------------------------------------------------
       // 2. CREAR EL ESTUDIO (TENANT)
-      // ---------------------------------------------------------
+      // Incluso si es Freelance, creamos un "Estudio Personal" para mantener la lógica de datos unificada
       const { data: studioData, error: studioError } = await supabase
         .from('studios')
         .insert([
           { 
             name: name.trim(),
-            type: accountType,
+            type: accountType, // 'business' o 'freelance'
             owner_id: user.id 
           }
         ])
@@ -66,9 +58,7 @@ export const OnboardingPage = () => {
 
       if (studioError) throw studioError;
 
-      // ---------------------------------------------------------
-      // 3. CREAR LA MEMBRESÍA DE DUEÑO
-      // ---------------------------------------------------------
+      // 3. CREAR LA MEMBRESÍA
       const { error: memberError } = await supabase
         .from('studio_members')
         .insert([
@@ -81,26 +71,32 @@ export const OnboardingPage = () => {
 
       if (memberError) throw memberError;
 
-      // ---------------------------------------------------------
-      // 4. CREAR LA SUSCRIPCIÓN INICIAL
-      // ---------------------------------------------------------
-      const { error: subError } = await supabase
-        .from('subscriptions')
-        .insert([
+      // 4. CREAR SUSCRIPCIÓN (Solo si encontramos el plan)
+      if (planData) {
+        await supabase.from('subscriptions').insert([
           {
             studio_id: studioData.id,
             plan_id: planData.id,
-            status: 'active', // O 'trial' si quieres dar días de prueba
-            valid_until: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString() // 1 mes gratis o valido
+            status: 'active',
+            valid_until: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString()
           }
         ]);
+      }
 
-      if (subError) throw subError;
+      // --- CRÍTICO: ACTUALIZAR EL PERFIL DEL USUARIO ---
+      // Esto conecta al usuario con su nuevo entorno
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+            name: name.trim(), // Actualizamos el nombre en el perfil también
+            studio_id: studioData.id, // Vinculamos el estudio
+            type: accountType === 'business' ? 'owner' : 'independent' // Definimos el rol visual
+        })
+        .eq('id', user.id);
 
-      // ---------------------------------------------------------
+      if (profileError) throw profileError;
+
       // 5. REDIRIGIR AL DASHBOARD
-      // ---------------------------------------------------------
-      // Usamos href para forzar una recarga limpia y que el StudioGuard detecte los cambios
       window.location.href = '/'; 
 
     } catch (error: any) {
