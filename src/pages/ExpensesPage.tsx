@@ -208,7 +208,8 @@ export const ExpensesPage = () => {
         {/* FORMULARIO */}
         <aside className="lg:col-span-4 order-1 lg:order-2">
           <div className="lg:sticky lg:top-28">
-            <section className={`bg-zinc-900 border ${editingId ? 'border-red-500/50' : 'border-zinc-800'} p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative overflow-hidden transition-colors duration-500`}>
+            {/* CORRECCIÓN: Eliminado 'overflow-hidden' para permitir que el dropdown sobresalga */}
+            <section className={`bg-zinc-900 border ${editingId ? 'border-red-500/50' : 'border-zinc-800'} p-8 rounded-[3.5rem] shadow-2xl space-y-8 relative transition-colors duration-500`}>
               
               <div className="text-left relative flex justify-between items-start">
                 <div>
@@ -264,8 +265,8 @@ export const ExpensesPage = () => {
                   </div>
                 </div>
 
-                {/* --- CUSTOM DROPDOWN (Reemplazo del Select nativo) --- */}
-                <div className="space-y-2 relative" ref={dropdownRef}>
+                {/* --- CUSTOM DROPDOWN (Con Z-Index alto) --- */}
+                <div className="space-y-2 relative z-50" ref={dropdownRef}>
                   <label className="text-[9px] font-black text-zinc-600 uppercase ml-2 tracking-widest">Categoría</label>
                   
                   {/* Botón Trigger */}
@@ -285,7 +286,7 @@ export const ExpensesPage = () => {
 
                   {/* Lista Desplegable */}
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 animate-in fade-in zoom-in-95 duration-200 max-h-60 overflow-y-auto">
                       {CATEGORIES.map((cat) => (
                         <div 
                           key={cat}
@@ -304,7 +305,8 @@ export const ExpensesPage = () => {
 
                 <button 
                   disabled={isSaving}
-                  className={`w-full py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 ${
+                  // CORRECCIÓN: Z-Index bajo para que no tape al dropdown
+                  className={`w-full py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl transition-all active:scale-95 disabled:opacity-50 mt-4 relative z-0 ${
                     editingId 
                       ? 'bg-red-600 text-white hover:bg-red-500' 
                       : 'bg-white text-black hover:bg-zinc-200'

@@ -90,7 +90,7 @@ export const generateAccountingReport = (
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Reporte_Contador_ApoloInk_${monthName}_${year}.csv`);
+    link.setAttribute("download", `Reporte_Contador_${monthName}_${year}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
